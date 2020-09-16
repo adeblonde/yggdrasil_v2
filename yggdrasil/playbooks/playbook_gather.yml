@@ -1,0 +1,9 @@
+--- 
+- name : Test playbook, write aws credentials into a text file
+  hosts : all
+  vars_files :
+    - /home/vainamoinen/workspace/dev/auth/credentials_antoine_encrypted.yml
+
+- name : gather data and scp them to a S3 bucket
+  shell: scp -i SSH_KEY username@localhost:~/path/to/file/to/send destination_bucket
+- shell: python3 /path/to/sendscript/sendscript.py

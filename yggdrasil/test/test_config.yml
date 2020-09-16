@@ -1,0 +1,134 @@
+---
+  config_name : test_config
+
+  ansible_resources :
+    vault_password_file : 'AUTH_DIR/VAULT_PSSWD'
+    vault_dir : 'AUTH_DIR'
+    do_encrypt : true
+
+  terraform_resources :
+    credentials_dir : 'AUTH_DIR'
+
+  parameters :
+    - AUTH_DIR
+    - CRED_FILE
+    - SSH_KEY
+    - AMI_ID
+    - USERNAME
+    - WORK_DIR
+    - SCENARIO_NAME
+    - VAULT_PSSWD
+    - CODE_DIR
+    
+  infrastructure :
+    terraform_init : true
+    terraform_plan : true
+    terraform_apply : true
+    terraform_refresh : false
+    private_ssh_key_path : 'AUTH_DIR/SSH_KEY.pem'
+    providers :
+    - provider :
+        provider_name : aws
+        region : 'eu-west-1'
+        profile : developer
+        credentials_file : 'AUTH_DIR/CRED_FILE'
+        ssh_key : 'SSH_KEY'
+        
+        machines :
+        - machine :
+            name : master_machine
+            user : ubuntu
+            number : 1
+            groups :
+              - master
+              - front
+            aws_specs :
+              AMI : AMI_ID
+              type : t2.small
+              region : 'eu-west-1'
+              security_group : 'basic_sec_group'
+            config_script :
+              - 'test_playbooks/config_master.yml'
+
+        - machine :
+            name : worker_machine
+            user : ubuntu
+            number : 2
+            groups :
+              - worker
+              - server
+            aws_specs :
+              AMI : AMI_ID
+              type : t2.small
+              region : 'eu-west-1'
+              security_group : 'basic_sec_group'
+            config_script :
+              - 'test_playbooks/config_worker.yml'
+
+    - provider :
+        provider_name : on-premises
+        profile : developer
+        private_ssh_key_path : 'AUTH_DIR/SSH_KEY.pem'
+        machines :
+        - machine :
+            name : local_host
+            user : USERNAME
+            groups :
+              - master
+
+  data_sending :
+    - data :
+        origin : 'WORK_DIR/SCENARIO_NAME/test.txt'
+        destination : '/home/ubuntu'
+        isfolder : False
+        by_names :
+          - master_machine_0
+          - worker_machine_0
+        by_groups :
+          - master
+          - server
+
+  data_receiving :
+    - data :
+        origin : 'WORK_DIR/SCENARIO_NAME/test.txt'
+        destination : '/home/ubuntu'
+        isfolder : False
+        by_names :
+          - master_machine_0
+          - worker_machine_0
+        by_groups :
+          - master
+          - server
+
+  extra_job_folders :
+    - 'CODE_DIR/yggdrasil/test'
+  sync_jobs :
+    job_list :
+      - job :
+          name : test_single_job
+          target :
+            - master_machine_0
+          scripts :
+            - playbook_test.yml
+      - job :
+          name : test_group_job
+          target :
+            - worker
+          scripts :
+          - playbook_test.yml
+  pool_jobs :
+    job_list :
+      - job :
+          name : test_pool_job
+          type : pool
+          target :
+            - worker
+          scripts :
+            - playbook_test_1.yml
+            - playbook_test_2.yml
+
+  options :
+    destroy : false
+    shutdown_after_complete : false
+    data_only : false
+    no_data : false

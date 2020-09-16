@@ -1,0 +1,3 @@
+[default]
+region=AWS_REGION
+output=json

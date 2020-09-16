@@ -1,0 +1,10 @@
+--- 
+- name : Test playbook, write aws credentials into a text file
+  hosts : all
+  vars_files :
+    - /home/vainamoinen/workspace/dev/auth/credentials_antoine_encrypted.yml
+
+  tasks :
+  - name : test playbook
+    shell: echo '{{ aws_access_key_id }}' >> test_a.txt
+  - shell: echo '{{ aws_secret_key }}' >> test_a.txt
