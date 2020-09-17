@@ -9,6 +9,7 @@ import json
 import click
 from os.path import join
 from .common_tools import *
+from .terraform import terraform_init
 
 DATA_PATH = pkg_resources.resource_filename('yggdrasil', '.')
 
@@ -43,16 +44,22 @@ def set_parameters(logger, configfile, params, variable=None) :
 	return yaml.load(config)
 
 @click.command()
-@click.argument('action', default='status')
-@click.argument('--configuration-file','-f', default='./yggdrasil_config.yml')
-@click.option('--parameters','-p', default=None, help='YAML file storing parameters to set in the configuration file')
+@click.argument('stage')
+@click.argument('action')
+@click.argument('--provider','-c', default='auto', help='cloud provider name, currently either "aws", "azure" or "gcp"')
+@click.argument('--scope','-s', default='dev', help='architecture scope')
+# @click.argument('--configuration-file','-f', default='./yggdrasil_config.yml')
+# @click.option('--parameters','-p', default=None, help='YAML file storing parameters to set in the configuration file')
 @click.option('--workfolder','-w', default='.',help='Location of the working folder that will be created with temporary file, name after \'config_name\'')
-def ygg(action, configuration_file, parameters, workfolder) :
+# def ygg(action, configuration_file, parameters, workfolder) :
+def ygg(stage, action, provider, scope, workfolder) :
 
     """ we execute the run options with the provided arguments """
-    run(action, configuration_file, workfolder, parameters)
+    run(stage, action, provider, scope, workfolder)
+    # run(action, configuration_file, workfolder, parameters)
 
-def run(action, configuration_file, workfolder, params, variable=None, dryrun=False, shutdownatend=False) :
+# def run(step, action, configuration_file, workfolder, params, variable=None, dryrun=False, shutdownatend=False) :
+def run(stage, action, provider, scope, workfolder) :
 
 	""" the run function is separated from the main CLI function ygg, for modularity purposes """
 
@@ -67,4 +74,15 @@ def run(action, configuration_file, workfolder, params, variable=None, dryrun=Fa
 	logger = create_logger(join(work_dir,'ygg.log'))
 
 	""" parse config file """
-	config = set_parameters(logger, configuration_file, params, variable)
+	# config = set_parameters(logger, configuration_file, params, variable)
+
+	""" execute stage """
+	stage(logger, action, provider, scope, workfolder)
+
+def infra(logger, action, provider, scope, workfolder) :
+
+	logger.info("Entering stage infra")
+
+	""" infra_action executes the 'action' infra function """
+	terraform_init.action(logger, provider, scope, workfolder)
+	
