@@ -84,5 +84,5 @@ def infra(logger, action, provider, scope, workfolder) :
 	logger.info("Entering stage infra")
 
 	""" infra_action executes the 'action' infra function """
-	terraform_init.action(logger, provider, scope, workfolder)
+	terraform_init.action(logger, provider, scope, workfolder, DATA_PATH)
 	

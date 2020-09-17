@@ -19,7 +19,11 @@ Install Ansible
 Init Infra as Code working tree
 
 ```bash
-ygg infra init --provider <CLOUD_PROVIDER> [--scope <SCOPE_NAME>] [--workfolder <PATH_TO_WORKFOLDER>]
+ygg infra init --provider <CLOUD_PROVIDER> [--scope <SCOPE_NAME>] [--workfolder <PATH_TO_WORKFOLDER>] [--upgrade]
+```
+
+```bash
+ygg infra setup [--scope <SCOPE_NAME>] [--workfolder <PATH_TO_WORKFOLDER>] [--upgrade]
 ```
 
 ```bash
@@ -41,7 +45,7 @@ ygg infra destroy [--scope <SCOPE_NAME>] [--workfolder <PATH_TO_WORKFOLDER>]
 #### Configuration Management - Preparation of environments
 
 ```bash
-ygg config init [--scope <SCOPE_NAME>] [--workfolder <PATH_TO_WORKFOLDER>]
+ygg config init [--scope <SCOPE_NAME>] [--workfolder <PATH_TO_WORKFOLDER>] [--upgrade]
 ```
 
 ```bash
@@ -55,7 +59,7 @@ ygg config apply [--scope <SCOPE_NAME>] [--workfolder <PATH_TO_WORKFOLDER>] [--c
 #### Configuration Management - Execution of workflows
 
 ```bash
-ygg workflow init [--scope <SCOPE_NAME>] [--target <WORKFLOW_NAME>] [--workfolder <PATH_TO_WORKFOLDER>]
+ygg workflow init [--scope <SCOPE_NAME>] [--target <WORKFLOW_NAME>] [--workfolder <PATH_TO_WORKFOLDER>] [--upgrade]
 ```
 
 ```bash
