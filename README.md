@@ -19,7 +19,7 @@ Install Ansible
 Init Infra as Code working tree
 
 ```bash
-ygg infra init --provider <CLOUD_PROVIDER> [--scope <SCOPE_NAME>] [--workfolder <PATH_TO_WORKFOLDER>] [--upgrade]
+ygg infra init --provider <CLOUD_PROVIDER> [--scope <SCOPE_NAME>] [--workfolder <PATH_TO_WORKFOLDER>] [--upgrade] [--credentials <PATH_TO_CLOUD_PROVIDER_CREDENTIALS>]
 ```
 
 ```bash

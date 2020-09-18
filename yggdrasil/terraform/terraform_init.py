@@ -5,13 +5,32 @@ from distutils.dir_util import copy_tree
 import json
 from yggdrasil.common_tools import *
 
-def init(logger, provider, scope, workfolder, data_path, upgrade=False) :
+def prepare_credentials_aws(credentials_file, region):
+
+    """ Prepare well-formatted credentials file for AWS """
+    aws_creds = load_aws_credentials(credentials_file)
+
+    aws_creds_str = """
+AWS_ACCESS_KEY=%s
+AWS_SECRET_KEY=%s
+AWS_DEFAULT_REGION=%s
+"""
+
+
+
+def init(logger, provider, scope, workfolder, data_path, credentials_file, region, upgrade=False) :
 
     logger.info("Init action")
 
     logger.info("Creating secrets folder")
-    secrets_folder = os.path.join(workfolder, 'secrets')
-    makedir_p(secrets_folder)
+    provider_secrets_folder = os.path.join(workfolder, 'secrets', provider)
+    makedir_p(provider_secrets_folder)
+
+    if os.path.isfile(credentials_file) :
+        logger.info("Setting provider credentials file in place")
+        provider_secrets = os.path.join(provider_secrets_folder, scope)
+        shutil.copyfile(credentials_file, provider_secrets)
+
 
     logger.info("Creating Terraform modules")
     tf_modules_folder = os.path.join(workfolder, 'terraform')
