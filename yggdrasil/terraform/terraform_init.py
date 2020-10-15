@@ -11,10 +11,10 @@ def prepare_credentials_aws(credentials_file, region):
     aws_creds = load_aws_credentials(credentials_file)
 
     aws_creds_str = """
-AWS_ACCESS_KEY=%s
-AWS_SECRET_KEY=%s
-AWS_DEFAULT_REGION=%s
-"""
+AWS_ACCESS_KEY={}
+AWS_SECRET_KEY={}
+AWS_DEFAULT_REGION={}
+""".format(aws_creds['aws_secret_key'], aws_creds[''])
 
 
 
