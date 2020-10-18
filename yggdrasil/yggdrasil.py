@@ -10,8 +10,17 @@ import click
 from os.path import join
 from .common_tools import *
 from .terraform import terraform_init
+from .ansible import ansible_init
 
 DATA_PATH = pkg_resources.resource_filename('yggdrasil', '.')
+
+
+def find_exec_path(logger) :
+
+	""" this function returns the path to the Terraform executable """
+	terraform_path = shutil.which('terraform')
+
+	return terraform_path
 
 def set_parameters(logger, configfile, params, variable=None) :
 
@@ -83,6 +92,35 @@ def infra(logger, action, provider, scope, workfolder) :
 
 	logger.info("Entering stage infra")
 
+	""" get Terraform executable """
+	try :
+		exec_path = find_exec_path('terraform')
+	except :
+		logger.info("Terraform executable not found")
+
+	""" if needed, initialize credentials and Terraform folder tree """
+	if action == "init" :
+		terraform_init.infra_init(logger, provider, scope, workfolder, exec_path, DATA_PATH)
+
 	""" infra_action executes the 'action' infra function """
-	terraform_init.action(logger, provider, scope, workfolder, DATA_PATH)
+	extra_params = []
+	if action == "output" :
+		inventory_folder = os.path.join(workfolder, 'inventories', scope)
+		makedir_p(inventory_folder)
+		terraform_output_file = os.path.join(inventory_folder, 'terraform_output.json')
+		extra_params = ["output", "-json", ">", terraform_output_file]
+	
+	terraform_init.infra_action(logger, action, extra_params, provider, scope, workfolder, exec_path, DATA_PATH)
+
+def config(logger, action, provider, scope, workfolder) :
+
+	logger.info("Entering stage config")
+
+	""" get Ansible executable """
+	try :
+		exec_path = find_exec_path('ansible-playbook')
+	except :
+		logger.info("ansible-playbook executable not found")
+
+	ansible_init.action(logger, provider, scope, workfolder)
 	
