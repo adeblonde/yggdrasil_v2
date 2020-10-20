@@ -122,5 +122,10 @@ def config(logger, action, provider, scope, workfolder) :
 	except :
 		logger.info("ansible-playbook executable not found")
 
-	ansible_init.action(logger, provider, scope, workfolder)
+	if action == "init" :
+		ansible_init.config_init(logger, provider, scope, workfolder)
+
+	if action == "apply" :
+		ansible_init.config_apply(logger, exec_path, provider, scope, workfolder)
+
 	

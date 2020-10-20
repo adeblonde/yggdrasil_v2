@@ -167,6 +167,6 @@ def infra_action(logger, action, extra_params, exec_path, provider, scope, workf
 	try :
 		command = [exec_path, action] + extra_params
 		result = subprocess.call(command, env=env)
-		logger.info("Result of ansible call : %s" % result)
+		logger.info("Result of Terraform call : %s" % result)
 	except :
 		logger.info("Error in the execution of Terraform :\n")

@@ -3,10 +3,9 @@ import os
 from yggdrasil.common_tools import makedir_p
 import shutil
 import subprocess
+import yaml
 
-def build_host_file()
-
-def init(logger, provider, scope, workfolder) :
+def config_init(logger, provider, scope, workfolder) :
 
 	""" create host file and ssh config file """
 
@@ -163,3 +162,41 @@ Host *
 
 	with open(ssh_file, 'w') as f :
 		f.write(output_string_bastion + output_string_target + output_string_footer)
+
+def config_apply(logger, exec_path, provider, scope, workfolder) :
+
+	logger.info("Apply configuration %s", action)
+
+	configuration_file = os.path.join(workfolder, 'scopes', scope, 'configuration.yml')
+
+	if not os.path.exists(configuration_file) :
+		raise Exception("Configuration file for scope %s does not exist", scope)
+
+	logger.info("Loading configuration commands to execute")
+	configuration_commands = []
+	with open(configuration_file, 'r') as f :
+		configuration_commands = yaml.load(f, Loader=yaml.FullLoader)
+
+	if 'operations' in configuration_commands.keys()
+		for operation in configuration_commands["operations"] :
+			ansible_command = [exec_path,
+				'-i', os.path.join(workfolder, 'inventories', scope, 'envt.hosts')
+			]
+			if 'action' in operation.keys() : 
+				if 'target' in operation.keys() :
+					ansible_command += [
+						'--limit', operation['target']
+					]
+				ansible_command += [
+					os.path.join(workfolder, 'ansible', 'playbooks', operation + 'yml')
+				]
+				if 'extra-vars' in operation.keys()
+					if type(operation['extra-vars']) is list :
+						for param in operation['extra-vars']]
+							ansible_command += ['--extra-vars', param]
+			try :
+				command = [exec_path, action] + extra_params
+				result = subprocess.call(command, env=env)
+				logger.info("Result of Ansible call : %s" % result)
+			except :
+				logger.info("Error in the execution of Terraform :\n")
