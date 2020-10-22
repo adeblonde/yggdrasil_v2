@@ -35,34 +35,59 @@ def prepare_credentials_azure(logger, credentials_file, formatted_credentials_fi
 	with open(formatted_credentials_file, 'w') as f :
 			f.write(azure_creds_str)
 
-def prepare_credentials_gcp(logger, credentials_file, formatted_credentials_file, region):
+# def prepare_credentials_gcp(logger, credentials_file, formatted_credentials_file, region):
 
-	""" Prepare well-formatted credentials file for AWS """
-	gcp_creds = load_aws_credentials(logger, credentials_file)
+# 	""" Prepare well-formatted credentials file for AWS """
+# 	gcp_creds = load_aws_credentials(logger, credentials_file)
 
-# 	gcp_creds_str = """
-# export AWS_ACCESS_KEY={}
-# export AWS_SECRET_KEY={}
-# export AWS_DEFAULT_REGION={}
-# """.format(aws_creds['aws_secret_key'], aws_creds[''])
+# # 	gcp_creds_str = """
+# # export AWS_ACCESS_KEY={}
+# # export AWS_SECRET_KEY={}
+# # export AWS_DEFAULT_REGION={}
+# # """.format(aws_creds['aws_secret_key'], aws_creds[''])
 
-	with open(formatted_credentials_file, 'w') as f :
-			f.write(gcp_creds_str)
+# 	with open(formatted_credentials_file, 'w') as f :
+# 			f.write(gcp_creds_str)
 
-def prepare_credentials(logger, credentials_file, provider, scope, workfolder, region) :
+def prepare_credentials(logger, credentials_file, provider, scope, workfolder, region, target_provider) :
 
 	logger.info("Prepare credentials file for provider")
 
 	logger.info("Creating secrets folder")
-	provider_secrets_folder = os.path.join(workfolder, 'secrets', provider)
+	provider_secrets_folder = os.path.join(workfolder, 'secrets', provider, scope)
 	makedir_p(provider_secrets_folder)
 
 	if os.path.isfile(credentials_file) :
 		logger.info("Setting provider credentials file in place")
-		provider_secrets = os.path.join(provider_secrets_folder, scope, '.env')
 		# shutil.copyfile(credentials_file, provider_secrets)
 		if provider == "aws" :
+			logger.info("Setting AWS secrets")
+			provider_secrets = os.path.join(provider_secrets_folder, '.env')
 			prepare_credentials_aws(logger, credentials_file, provider_secrets, region)
+		if provider == "gcp" :
+			logger.info("Setting GCP secrets")
+			provider_secrets = os.path.join(provider_secrets_folder, 'credentials.json')
+			shutil.copyfile(credentials_file, provider_secrets)
+
+			logger.info("Loading GCP credentials content")
+			credentials_content = ""
+			with open(credentials_file, 'r') as f:
+				credentials_content = json.load(f)
+			if 'project_id' not in credentials_content.keys() :
+				logger.info('Project ID missing in GCP credentials file located in %s' % credentials_file)
+
+			logger.info("Setting gcp provider tf file with credentials content")
+			buffer_provider_file_content = ""
+			with open(target_provider, 'r') as f :
+				buffer_provider_file_content = f.read()
+				buffer_provider_file_content = buffer_provider_file_content.replace('CREDENTIALS_FILE', os.path.join('..','..','secrets', provider, scope, 'credentials.json'))
+				buffer_provider_file_content = buffer_provider_file_content.replace('PROJECT_ID', credentials_content['project_id'])
+				buffer_provider_file_content = buffer_provider_file_content.replace('REGION', region)
+
+			with open(target_provider, 'w') as f :
+				f.write(buffer_provider_file_content)
+
+	return
 
 def load_provider_credentials(logger, provider, scope, workfolder) :
 
@@ -84,8 +109,6 @@ def load_provider_credentials(logger, provider, scope, workfolder) :
 def infra_init(logger, provider, scope, workfolder, exec_path, data_path, credentials_file, region, upgrade=False) :
 
 	logger.info("Init action")
-
-	prepare_credentials(logger, credentials_file, provider, scope, workfolder, region)
 
 	logger.info("Creating Terraform modules")
 	tf_modules_folder = os.path.join(workfolder, 'terraform')
@@ -137,36 +160,44 @@ def infra_init(logger, provider, scope, workfolder, exec_path, data_path, creden
 	target_resources = os.path.join(workfolder, 'scopes', scope, 'resources.auto.tfvars')
 	shutil.copy(source_resources, target_resources)
 
+	""" we prepare the credentials for the chosen cloud provider """
+	prepare_credentials(logger, credentials_file, provider, scope, workfolder, region, target_provider)
+
 	logger.info("Storing info in .ygg file")
 	ygg_state = os.path.join(workfolder, '.ygg')
 	if os.path.isfile(ygg_state) :
 		ygg_data = dict()
-		with open(ygg_state, 'w') as f :
+		with open(ygg_state, 'r') as f :
 			ygg_data = json.load(f)
 			ygg_data['provider'] = provider
 	else :
 		ygg_data = {'provider':provider}
 
-	with open(ygg_state, 'r') as f :
+	with open(ygg_state, 'w') as f :
 			json.dump(ygg_data, f)
 
 	return
 
-def infra_action(logger, action, extra_params, exec_path, provider, scope, workfolder) :
+def infra_action(logger, action, extra_params, provider, scope, workfolder, exec_path) :
 
 	logger.info("Apply action %s", action)
 
-	env = load_provider_credentials(logger, provider, scope, workfolder)
+	env = dict()
+	if provider == "aws" :
+		env = load_provider_credentials(logger, provider, scope, workfolder)
 
-	tfvars_folder = os.path.join(workfolder, 'scope', scope, 'modules')
+	tfvars_folder = os.path.join(workfolder, 'scopes', scope, 'modules')
 
-	tfvars_list = [f for f in os.listdir(tfvars_folder) if (os.path.isfile(os.path.join(tfvars_folder, f) & f[-5:] == '.tfvars'))]
+	# print([os.path.join('modules', f[-7:]) for f in os.listdir(tfvars_folder) if (os.path.isfile(os.path.join(tfvars_folder, f)) )])
+	tfvars_list = [os.path.join('modules', f) for f in os.listdir(tfvars_folder) if (os.path.isfile(os.path.join(tfvars_folder, f)) & (f[-7:] == '.tfvars'))]
 	for tfvars_file in tfvars_list :
-		extra_params += ['--var-file=' + os.path.join(tfvars_folder, tfvars_file)]
+		extra_params += ['--var-file=' + tfvars_file]
 
+	scope_folder = os.path.join(workfolder, 'scopes', scope)
 	try :
 		command = [exec_path, action] + extra_params
-		result = subprocess.call(command, env=env)
+		logger.info("Execution of command :\n%s\nin folder %s" % (' '.join(command), scope_folder))
+		result = subprocess.call(command, env=env, cwd=scope_folder)
 		logger.info("Result of Terraform call : %s" % result)
 	except :
 		logger.info("Error in the execution of Terraform :\n")

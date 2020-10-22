@@ -11,4 +11,4 @@
 # ../testenv/bin/activate
 
 ### recompile and reinstall package
-pip3 install -e .
+# pip3 install -e .

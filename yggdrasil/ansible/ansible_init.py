@@ -30,7 +30,7 @@ def config_init(logger, provider, scope, workfolder) :
 		machines[key] = {
 			'private_ip' : value,
 		}
-		for param in ["subnet", "network", "public_ip", "ssh_key", "short_name", "group", "user"] :
+		for param in ["subnet", "network", "public_ip", "ssh_key", "group", "user"] :
 			if key in tf_outputs["machine_" + param] :
 				machines[key][param] = tf_outputs["machine_" + param][key]
 			if key in tf_outputs["subnet"] :
@@ -39,12 +39,12 @@ def config_init(logger, provider, scope, workfolder) :
 					escape_public_subnet = tf_outputs["private_subnets_escape_public_subnet"][machine_subnet]
 					if escape_public_subnet in tf_outputs["public_subnet_bastion"] :
 						bastion_name = tf_outputs["public_subnet_bastion"][escape_public_subnet]
-						if bastion_name in tf_outputs["machine_public_ip"] : 
+						if bastion_name in tf_outputs["machine_public_ip"] :
 							machines[key]["ssh_bastion"] = tf_outputs["machine_public_ip"][bastion_name]
 
 	""" we create sets of machines according to their group name, network, and subnet belonging """
 	machines_per_category = dict()
-	categories = ["subnets", "networks", "groups"] :
+	categories = ["subnets", "networks", "groups"]
 	for category in categories :
 		machines_per_category[category] = dict()
 		for elt in tf_outputs[category] :
@@ -177,7 +177,7 @@ def config_apply(logger, exec_path, provider, scope, workfolder) :
 	with open(configuration_file, 'r') as f :
 		configuration_commands = yaml.load(f, Loader=yaml.FullLoader)
 
-	if 'operations' in configuration_commands.keys()
+	if 'operations' in configuration_commands.keys() :
 		for operation in configuration_commands["operations"] :
 			ansible_command = [exec_path,
 				'-i', os.path.join(workfolder, 'inventories', scope, 'envt.hosts')
@@ -190,9 +190,9 @@ def config_apply(logger, exec_path, provider, scope, workfolder) :
 				ansible_command += [
 					os.path.join(workfolder, 'ansible', 'playbooks', operation + 'yml')
 				]
-				if 'extra-vars' in operation.keys()
+				if 'extra-vars' in operation.keys() :
 					if type(operation['extra-vars']) is list :
-						for param in operation['extra-vars']]
+						for param in operation['extra-vars'] :
 							ansible_command += ['--extra-vars', param]
 			try :
 				command = [exec_path, action] + extra_params

@@ -149,7 +149,7 @@ resource "aws_route_table_association" "private_rta" {
 
 resource "aws_route_table" "public_route_tables" {
 
-    for_each = var.private_subnets
+    for_each = var.public_subnets
 
     vpc_id = aws_vpc.network.vpc_id
     route {

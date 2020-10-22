@@ -55,20 +55,20 @@ def set_parameters(logger, configfile, params, variable=None) :
 @click.command()
 @click.argument('stage')
 @click.argument('action')
-@click.argument('--provider','-c', default='auto', help='cloud provider name, currently either "aws", "azure" or "gcp"')
-@click.argument('--scope','-s', default='dev', help='architecture scope')
-# @click.argument('--configuration-file','-f', default='./yggdrasil_config.yml')
-# @click.option('--parameters','-p', default=None, help='YAML file storing parameters to set in the configuration file')
-@click.option('--workfolder','-w', default='.',help='Location of the working folder that will be created with temporary file, name after \'config_name\'')
-# def ygg(action, configuration_file, parameters, workfolder) :
-def ygg(stage, action, provider, scope, workfolder) :
+@click.option('--credentials','-c', default='credentials.json', help='Location of the credentials file for the chosen cloud provider')
+@click.option('--provider','-p', default='aws', help='cloud provider name, currently either "aws", "azure" or "gcp"')
+@click.option('--scope','-s', default='dev', help='architecture scope')
+@click.option('--workfolder','-w', default='.', help='Location of the working folder that will be created with temporary file, name after \'config_name\'')
+@click.option('--region','-r', default='us-east-1', help='Location of the working folder that will be created with temporary file, name after \'config_name\'')
+@click.option('--blueprint','-r', default=None, help='Name of a cloud architecture blueprint from Yggdrasil\'s library for bootstrapping')
+def ygg(stage, action, provider, scope, workfolder, credentials, region, blueprint) :
 
     """ we execute the run options with the provided arguments """
-    run(stage, action, provider, scope, workfolder)
+    run(stage, action, provider, scope, workfolder, credentials, region)
     # run(action, configuration_file, workfolder, parameters)
 
 # def run(step, action, configuration_file, workfolder, params, variable=None, dryrun=False, shutdownatend=False) :
-def run(stage, action, provider, scope, workfolder) :
+def run(stage, action, provider, scope, workfolder, credentials_file, region, blueprint) :
 
 	""" the run function is separated from the main CLI function ygg, for modularity purposes """
 
@@ -86,9 +86,12 @@ def run(stage, action, provider, scope, workfolder) :
 	# config = set_parameters(logger, configuration_file, params, variable)
 
 	""" execute stage """
-	stage(logger, action, provider, scope, workfolder)
+	if stage == "infra" :
+		infra(logger, action, provider, scope, workfolder, credentials_file, region, blueprint)
+	if stage == "config" :
+		config(logger, action, provider, scope, workfolder)
 
-def infra(logger, action, provider, scope, workfolder) :
+def infra(logger, action, provider, scope, workfolder, credentials_file, region, blueprint) :
 
 	logger.info("Entering stage infra")
 
@@ -100,7 +103,10 @@ def infra(logger, action, provider, scope, workfolder) :
 
 	""" if needed, initialize credentials and Terraform folder tree """
 	if action == "init" :
-		terraform_init.infra_init(logger, provider, scope, workfolder, exec_path, DATA_PATH)
+		if not os.path.exists(credentials_file) :
+			logger.info("Missing credentials file at location %s, stopping program" % credentials_file)
+			exit()
+		terraform_init.infra_init(logger, provider, scope, workfolder, exec_path, DATA_PATH, credentials_file, region, blueprint)
 
 	""" infra_action executes the 'action' infra function """
 	extra_params = []
@@ -110,7 +116,7 @@ def infra(logger, action, provider, scope, workfolder) :
 		terraform_output_file = os.path.join(inventory_folder, 'terraform_output.json')
 		extra_params = ["output", "-json", ">", terraform_output_file]
 	
-	terraform_init.infra_action(logger, action, extra_params, provider, scope, workfolder, exec_path, DATA_PATH)
+	terraform_init.infra_action(logger, action, extra_params, provider, scope, workfolder, exec_path)
 
 def config(logger, action, provider, scope, workfolder) :
 

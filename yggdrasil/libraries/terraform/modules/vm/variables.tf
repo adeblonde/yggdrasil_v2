@@ -1,86 +1,20 @@
-variable "vm_name" {
-    type = string
-    description = "Name of the virtual machine"
-}
-
-variable "vm_description" {
-    type = string
-    description = "Description of the virtual machine"
-}
-
-variable "network_name" {
-    type = string
-    description = "Name of the network"
-}
-
-variable "network_ids" {
-    description = "List of networks' ids"
-}
-
-variable "ingress_rules" {
-    description = "List of ingress rules"
-}
-
-variable "egress_rules" {
-    description = "List of egress rules"
-}
-
-variable "system_image" {
-    description = "Name of virtual machine OS image"
-}
-
-variable "instance_type" {
-    description = "Type of instance"
-}
-
-variable "availability_zone" {
-    description = "Availability zone"
-}
-
-variable "key_name" {
-    description = "Key name"
-}
-
-variable "subnet_ids" {
-    description = "List of subnet ids"
-}
-
-variable "network_module_prefix" {
-    description = "Prefix used for resources' names in the network module"
-}
-
-variable "subnet_name" {
-    description = "Subnet name for the virtual machine"
-}
-
-variable "subnet_type" {
-    description = "Subnet type (public or private)"
-}
-
-variable "private_ip" {
-    description = "Private IP of the virtual machine"
-}
-
-variable "root_volume" {
-    description = "Parameters of the root volume"
-}
-
-variable "data_volume" {
-    description = "Parameters of the data volume"
-}
-
-variable "iam_module_prefix" {
-    description = "Prefix used for resources' names in the iam module"
-}
-
-variable "instance_profile_name" {
-    description = "Name of the IAM instance profile"
-}
-
-variable "module_tags" {
-    description = "List of all the tags of the module"
-}
-
-variable "module_prefix" {
-    description = "Prefix used for resource' names in the module"
+variable vm {
+	description = "Map of parameters for virtual machine"
+	type = object({
+		vm = string
+		network_name = string
+		module_labels = string
+		module_prefix = string
+		instance_type = string
+		availability_zone = string
+		system_image = string
+		subnets = string
+		subnet_type = string
+		private_ip = string
+		root_volume = string
+		data_volume = string
+		ssh_public_key_path = string
+		ingress_rules = string
+		egress_rules = string
+	})
 }

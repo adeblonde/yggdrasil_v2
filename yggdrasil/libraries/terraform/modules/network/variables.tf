@@ -1,20 +1,11 @@
-variable "network_name" {
-    type = string
-    description = "Name of the network"
-}
-
-variable "private_subnets" {
-   description = "List of the private subnets' names"
-}
-
-variable "public_subnets" {
-   description = "List of the public subnets' names"
-}
-
-variable "module_tags" {
-    description = "List of all the tags of the module"
-}
-
-variable "module_prefix" {
-    description = "Prefix used for resource' names in the module"
+variable network {
+  type        = object({
+	network_name  = string
+	module_labels = string
+	module_prefix = string
+	private_subnets = string
+	public_subnets = string
+  })
+#   default     = ""
+  description = "Map of parameters for network and associated subnets"
 }
