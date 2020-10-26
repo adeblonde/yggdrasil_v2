@@ -6,16 +6,14 @@ locals {
 		provider = var.cloud_provider
 		account = var.account
 		cost_center = var.cost_center
-		part = var.part
-		subpart = var.subpart
 		environment = var.environment
 	}
 
 	### map of labels per part and subpart
 	common_labels = merge(
-		{ for part in var.part :
+		{ for part, subparts in var.parts :
 		part => merge(
-			{ for subpart in var.subpart :
+			{ for subpart in subparts :
 			subpart => merge(
 				{
 					part  = part
@@ -37,9 +35,9 @@ locals {
 
 	### building common name prefixes
 	common_name_prefix = merge(
-		{ for part in var.part :
+		{ for part, subparts in var.parts :
 		part => merge(
-			{ for subpart in var.subpart :
+			{ for subpart in subparts :
 			subpart => format("%s_%s_%s_%s_%s", var.account, var.cost_center, var.environment, part, subpart)
 			},
 			{ "all_subparts" = format("%s_%s_%s_%s", var.account, var.cost_center, var.environment, part)
@@ -53,6 +51,7 @@ locals {
 	formatted_network = { for network_key, network in var.network :
 		network_key => {
 			network_name        = network_key
+			network_cidr = network.network_cidr
 			module_labels     = local.common_labels[network.part]["all_subparts"]
 			module_prefix       = local.common_name_prefix[network.part]["all_subparts"]
 			private_subnets = network.private_subnets
@@ -61,34 +60,37 @@ locals {
 	}
 
 	### formatting private subnets
-	formatted_private_subnets = flatten([])
+	# formatted_private_subnets = flatten([])
 
 	### formatting virtual machines
 	formatted_vm_list = flatten([
-		for part_key, part in var.vm : [
-			for subpart_key, subpart in part : [
-				for vm_name, vm in subpart : {
-					name = vm_name
-					network_name = vm.network
-					subnet_name = vm.subnet_name
-					module_labels     = local.common_labels[part_key][subpart_key]
-					module_prefix       = local.common_name_prefix[part_key][subpart_key]
+		for network_name, network_vms in var.vm : [
+			for subnet_name, subnet_vms in network_vms : [
+				for vm_name, vm in subnet_vms : {
+					vm_name = vm_name
+					user = vm.user
+					network_name = network_name
+					subnet_name = subnet_name
+					module_labels     = local.common_labels[vm.part][vm.subpart]
+					module_prefix       = local.common_name_prefix[vm.part][vm.subpart]
+					group = vm.group
 					instance_type = lookup(var.types[var.cloud_provider], vm.type)
 					availability_zone = vm.availability_zone
 					system_image = lookup(var.system_images, vm.system_image)
 					subnet_type = vm.subnet_type
 					private_ip = vm.private_ip
 					root_volume = var.generic_volume_parameters[vm.root_volume_type]
-					data_volume = var.generic_volume_parameters[vm.data_volume_type]
+					data_volume = var.generic_volume_parameters[lookup(vm, "data_volume_type", "none")]
 					data_disk_id         = lookup(vm, "data_disk_id", "/dev/sdf")
-					ssh_public_key_path = format("%s%s.pub", var.ssh_public_key_folder, vm.ssh_key)
+					# ssh_public_key_path = format("%s%s.pub", var.ssh_public_key_folder, var.vm.ssh_key)
+					ssh_public_key_path = var.ssh_public_key_folder
 					ingress_rules = { for rule in vm.ingress_rules :
 						rule => {
 							description = var.ingress_rules[rule].description
 							from_port   = var.ingress_rules[rule].from_port
 							to_port     = var.ingress_rules[rule].to_port
 							protocol    = var.ingress_rules[rule].protocol
-							cidr        = lookup(vm.ingress_cidr, rule, ["0.0.0.0/0"])
+							cidr        = lookup(lookup(vm, "ingress_cidr", {}), rule, ["0.0.0.0/0"])
 						}
 					}
 					egress_rules = { for rule in vm.egress_rules :
@@ -97,7 +99,7 @@ locals {
 							from_port   = var.egress_rules[rule].from_port
 							to_port     = var.egress_rules[rule].to_port
 							protocol    = var.egress_rules[rule].protocol
-							cidr        = lookup(vm.egress_cidr, rule, ["0.0.0.0/0"])
+							cidr        = lookup(lookup(vm, "egress_cidr", {}), rule, ["0.0.0.0/0"])
 						}
 					}
 				}
@@ -106,7 +108,7 @@ locals {
 	])
 
 	formatted_vm = { for vm in local.formatted_vm_list :
-		vm.name => vm
+		vm.vm_name => vm
 	}
 
 }

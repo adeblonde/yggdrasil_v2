@@ -11,12 +11,8 @@ variable "cost_center" {
 	description = "Cost center for the project"
 }
 
-variable "part" {
+variable "parts" {
 	description = "Way for annotating resources : parts"
-}
-
-variable "subpart" {
-	description = "Way for annotating resources : subparts"
 }
 
 variable "environment" {
@@ -51,7 +47,22 @@ variable egress_rules {
 
 ### network variables
 variable "network" {
-
+	description = "Map of all networks and subnets"
+	type = map(object({
+		network_cidr = string
+		part = string
+		public_subnets = map(
+			object({
+				cidr_block = string
+			})
+		)
+		private_subnets = map(
+			object({
+				cidr_block = string
+				private_subnets_escape_public_subnet = string
+			})
+		)
+	}))
 }
 
 ### vm variables

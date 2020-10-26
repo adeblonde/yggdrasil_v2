@@ -3,6 +3,14 @@ import os
 import logging
 from paramiko import SSHClient, AutoAddPolicy
 from scp import SCPClient
+import shutil
+
+def find_exec_path(logger, executable) :
+
+	""" this function returns the path to the Terraform executable """
+	exec_path = shutil.which(executable)
+
+	return exec_path
 
 def load_aws_credentials(logger, aws_creds_file) :
 

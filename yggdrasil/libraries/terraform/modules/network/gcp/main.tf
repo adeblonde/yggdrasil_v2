@@ -4,12 +4,12 @@
 
 resource "google_compute_network" "network" {
 
-	name = format("%s_%s_%s_network", var.network.module_prefix, var.network.network_name)
+	name = substr(replace(format("%s_%s_network", var.network.module_prefix, var.network.network_name), "_", "-"), 0, 61)
 
     # labels = merge(
     #     var.network.module_labels,
     #     {
-    #         "name" = format("%s_%s_network", var.network.module_prefix, var.network.network_name)
+    #         "name" = substr(replace(format("%s_%s_network", var.network.module_prefix, var.network.network_name), "_", "-"), 0, 61)
     #     }
     # )
 }
@@ -23,7 +23,7 @@ resource "google_compute_subnetwork" "private_subnets" {
 
     for_each = var.network.private_subnets
 
-	name          = format("%s_%s_%s_private_subnet", var.network.module_prefix, var.network.network_name, each.value.private_subnet_name)
+	name          = substr(replace(format("%s_%s_%s_private_subnet", var.network.module_prefix, var.network.network_name, each.key), "_", "-"), 0, 61)
 
     network = google_compute_network.network.name
     ip_cidr_range = each.value.cidr_block
@@ -37,9 +37,9 @@ resource "google_compute_subnetwork" "private_subnets" {
 
 resource "google_compute_subnetwork" "public_subnets" {
 
-    for_each = var.network.private_subnets
+    for_each = var.network.public_subnets
 
-	name          = format("%s_%s_%s_private_subnet", var.network.module_prefix, var.network.network_name, each.value.private_subnet_name)
+	name          = substr(replace(format("%s_%s_%s_private_subnet", var.network.module_prefix, var.network.network_name, each.key), "_", "-"), 0, 61)
 
     network = google_compute_network.network.name
     ip_cidr_range = each.value.cidr_block
@@ -58,7 +58,7 @@ resource "google_compute_subnetwork" "public_subnets" {
 #     tags = merge(
 #         var.network.module_labels,
 #         {
-#             "name" = format("%s_%s_internet_gateway", var.network.module_prefix, var.network.network_name)
+#             "name" = substr(replace(format("%s_%s_internet_gateway", var.network.module_prefix, var.network.network_name), "_", "-"), 0, 61)
 #         }
 #     )
 
@@ -69,17 +69,14 @@ resource "google_compute_subnetwork" "public_subnets" {
 ############
 resource "google_compute_address" "elastic_ip" {
 
-	count = (var.network.subnet_type == "public" ? 1 : 0)
+	name = substr(replace(format("%s_%s_elastic_ip", var.network.module_prefix, var.network.network_name), "_", "-"), 0, 61)
 
-	depends_on = [aws_instance.virtual_machine]
-	name = format("%s_%s_elastic_ip", var.network.module_prefix, var.network.network_name)
-
-	labels = merge(
-        var.network.module_labels,
-        {
-            "name" = format("%s_%s_elastic_ip", var.network.module_prefix, var.network.network_name)
-        }
-    )
+	# labels = merge(
+    #     var.network.module_labels,
+    #     {
+    #         "name" = substr(replace(format("%s_%s_elastic_ip", var.network.module_prefix, var.network.network_name), "_", "-"), 0, 61)
+    #     }
+    # )
 
 }
 
@@ -92,7 +89,7 @@ resource "google_compute_address" "elastic_ip" {
 #     tags = merge(
 #         var.network.module_labels,
 #         {
-#             "name" = format("%s_%s_elastic_ip", var.network.module_prefix, var.network.network_name)
+#             "name" = substr(replace(format("%s_%s_elastic_ip", var.network.module_prefix, var.network.network_name), "_", "-"), 0, 61)
 #         }
 #     )
 # }
@@ -105,30 +102,28 @@ resource "google_compute_address" "elastic_ip" {
 
 resource "google_compute_router" "router" {
 
-	name = format("%s_%s_%s_router", var.network.module_prefix, var.network.network_name, each.value.public_subnet_name)
+	name = substr(replace(format("%s_%s_router", var.network.module_prefix, var.network.network_name), "_", "-"), 0, 61)
 
 	network = google_compute_network.network.id
 }
 
 resource "google_compute_router_nat" "nat" {
 
-	name = format("%s_%s_%s_nat_gateway", var.network.module_prefix, var.network.network_name, each.value.public_subnet_name)
+	name = substr(replace(format("%s_%s_nat_gateway", var.network.module_prefix, var.network.network_name), "_", "-"), 0, 61)
 
 	router = google_compute_router.router.name
 
-	nat_ip_allocate_option = "AUTO_ONLY"
+	nat_ip_allocate_option = "MANUAL_ONLY"
+	nat_ips = google_compute_address.elastic_ip.*.self_link
 	source_subnetwork_ip_ranges_to_nat = "LIST_OF_SUBNETWORKS"
 
 	### dynamic listing of all private subnets
-	dynamic "subnetwork " {
+	dynamic "subnetwork" {
 		for_each = google_compute_subnetwork.private_subnets
 
 		content {
-			subnetwork = {
-				name = subnetwork.value.name
-				source_ip_ranges_to_nat = ["ALL_IP_RANGES"]
-			}
-
+			name = subnetwork.value.name
+			source_ip_ranges_to_nat = ["ALL_IP_RANGES"]
 		}
 	}
 }
@@ -143,7 +138,7 @@ resource "google_compute_router_nat" "nat" {
 #     tags = merge(
 #         var.network.module_labels,
 #         {
-#             "name" = format("%s_%s_%s_nat_gateway", var.network.module_prefix, var.network.network_name, each.value.public_subnet_name)
+#             "name" = substr(replace(format("%s_%s_%s_nat_gateway", var.network.module_prefix, var.network.network_name, each.value.public_subnet_name), "_", "-"), 0, 61)
 #         }
 #     )
 
@@ -157,6 +152,8 @@ resource "google_compute_router_nat" "nat" {
 resource "google_compute_route" "private_route_tables" {
 
     for_each = var.network.private_subnets
+
+	name = substr(replace(format("%s_%s_%s_private_rt", var.network.module_prefix, var.network.network_name, each.key), "_", "-"), 0, 61)
 
     network = google_compute_network.network.name
 	dest_range = "0.0.0.0/0"
@@ -179,7 +176,9 @@ resource "google_compute_route" "private_route_tables" {
 
 resource "google_compute_route" "public_route_tables" {
 
-    for_each = var.network.private_subnets
+    for_each = var.network.public_subnets
+
+	name = substr(replace(format("%s_%s_%s_public_rt", var.network.module_prefix, var.network.network_name, each.key), "_", "-"), 0, 61)
 
     network = google_compute_network.network.name
 	dest_range = "0.0.0.0/0"

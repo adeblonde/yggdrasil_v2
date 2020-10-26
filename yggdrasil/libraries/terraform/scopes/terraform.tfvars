@@ -2,11 +2,19 @@
 cloud_provider = "gcp"
 
 ### labels
-account = "default_account"
-cost_center = "cost_center"
-part = "part"
-subpart = "subpart"
+account = "acc"
+cost_center = "cc"
+parts = {
+	part = ["subpart_1", "subpart_2"]
+}
 environment = "dev"
+
+# account = "dflt_acc"
+# cost_center = "cost_ctr"
+# parts = {
+# 	part = ["subpart_1", "subpart_2"]
+# }
+# environment = "dev"
 
 ### owner
 owner = "devops"
@@ -17,9 +25,10 @@ region = "us-west1"
 ### types
 types = {
 	gcp = {
-
+		bastion = "e2-micro"
+		backend = "e2-small"
 	}
 }
 
 ### SSH keys
-ssh_public_key_folder = "../../dev/secrets/gcp/public/"
+ssh_public_key_folder = "../../secrets/ssh/dev/public/"

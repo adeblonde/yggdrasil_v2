@@ -14,14 +14,6 @@ from .ansible import ansible_init
 
 DATA_PATH = pkg_resources.resource_filename('yggdrasil', '.')
 
-
-def find_exec_path(logger) :
-
-	""" this function returns the path to the Terraform executable """
-	terraform_path = shutil.which('terraform')
-
-	return terraform_path
-
 def set_parameters(logger, configfile, params, variable=None) :
 
 	""" this function extract a configuration from a YAML config file and set the unset parameters using a params file """
@@ -95,9 +87,15 @@ def infra(logger, action, provider, scope, workfolder, credentials_file, region,
 
 	logger.info("Entering stage infra")
 
+	""" check if action is allowed """
+	allowed_actions = ["apply", "init", "destroy", "plan"]
+	if action not in allowed_actions :
+		logger.info("Action %s not allowed, action should be one of %s" % (action, " ".join(allowed_actions)))
+		exit()
+
 	""" get Terraform executable """
 	try :
-		exec_path = find_exec_path('terraform')
+		exec_path = find_exec_path(logger, 'terraform')
 	except :
 		logger.info("Terraform executable not found")
 
@@ -124,7 +122,7 @@ def config(logger, action, provider, scope, workfolder) :
 
 	""" get Ansible executable """
 	try :
-		exec_path = find_exec_path('ansible-playbook')
+		exec_path = find_exec_path(logger, 'ansible-playbook')
 	except :
 		logger.info("ansible-playbook executable not found")
 

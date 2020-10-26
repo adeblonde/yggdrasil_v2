@@ -1,3 +1,4 @@
 paramiko
 scp
 python-dotenv
+pyhcl

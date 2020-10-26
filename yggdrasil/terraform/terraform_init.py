@@ -6,6 +6,60 @@ import json
 import subprocess
 from dotenv import load_dotenv
 from yggdrasil.common_tools import *
+import hcl
+
+def prepare_ssh_keys(logger, provider, scope, workfolder) :
+
+	""" parse the network.tfvars file of the current scope in order to retrieve the list of ssh keys to create """
+	terraform_tfvars_file = os.path.join(workfolder, 'scopes', scope, 'terraform.tfvars')
+
+	if not os.path.exists(terraform_tfvars_file) :
+		logger.info('Missing %s file : cannot extract SSH keys name' % terraform_tfvars_file)
+		exit()
+	
+	tf_parts = dict()
+	ssh_prefix = ""
+	with open(terraform_tfvars_file, 'r') as f :
+		terraform_tfvars = hcl.load(f)
+		print(terraform_tfvars)
+		tf_parts = terraform_tfvars['parts']
+		ssh_prefix = "_".join([terraform_tfvars['account'], terraform_tfvars['cost_center'], terraform_tfvars['environment']])
+
+	ssh_keys = [ ssh_prefix + '_' + part + '_' + subpart for part, subparts in tf_parts.items() for subpart in subparts]
+
+	for ssh_key in ssh_keys :
+		public_ssh_key_folder = os.path.join(workfolder, 'secrets', 'ssh', scope, 'public')
+		public_ssh_key_file = os.path.join(public_ssh_key_folder, ssh_key + "_public.pem")
+		private_ssh_key_folder = os.path.join(workfolder, 'secrets', 'ssh', scope, 'private')
+		private_ssh_key_file = os.path.join(private_ssh_key_folder, ssh_key + '.pem')
+		logger.info("Creating SSH key %s" % private_ssh_key_file)
+		if (not os.path.exists(private_ssh_key_file)) | (not os.path.exists(public_ssh_key_file)) :
+			exec_path = find_exec_path(logger, 'ssh-keygen')
+			try :
+				command = [exec_path,
+					'-t',
+					'rsa',
+					'-b',
+					'2048',
+					'-f',
+					ssh_key + ".pem",
+					'-N',
+					'""'
+				]
+				logger.info("Execution of command :\n%s\nin folder %s" % (' '.join(command), private_ssh_key_folder))
+				result = subprocess.call(command, cwd=private_ssh_key_folder)
+				logger.info("Result of ssh-keygen call : %s" % result)
+
+				created_public_ssh_key = os.path.join(private_ssh_key_folder, ssh_key + '.pem.pub')
+				if not os.path.exists(created_public_ssh_key) :
+					logger.info("The public key %s has not been created !" % created_public_ssh_key)
+					exit()
+				logger.info("Moving public key to public keys folder")
+				shutil.move(created_public_ssh_key, public_ssh_key_file)
+			except :
+				logger.info("Error in the execution of ssh-keygen :\n")
+		else :
+			logger.info("Private and public keys already exist")
 
 def prepare_credentials_aws(logger, credentials_file, formatted_credentials_file, region):
 
@@ -56,6 +110,10 @@ def prepare_credentials(logger, credentials_file, provider, scope, workfolder, r
 	logger.info("Creating secrets folder")
 	provider_secrets_folder = os.path.join(workfolder, 'secrets', provider, scope)
 	makedir_p(provider_secrets_folder)
+	ssh_secrets_folder = os.path.join(workfolder, 'secrets', 'ssh', scope, 'public')
+	makedir_p(ssh_secrets_folder)
+	ssh_secrets_folder = os.path.join(workfolder, 'secrets', 'ssh', scope, 'private')
+	makedir_p(ssh_secrets_folder)
 
 	if os.path.isfile(credentials_file) :
 		logger.info("Setting provider credentials file in place")
@@ -162,6 +220,9 @@ def infra_init(logger, provider, scope, workfolder, exec_path, data_path, creden
 
 	""" we prepare the credentials for the chosen cloud provider """
 	prepare_credentials(logger, credentials_file, provider, scope, workfolder, region, target_provider)
+
+	""" we prepare the SSH keys for the scope """
+	prepare_ssh_keys(logger, provider, scope, workfolder)
 
 	logger.info("Storing info in .ygg file")
 	ygg_state = os.path.join(workfolder, '.ygg')

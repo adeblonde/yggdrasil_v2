@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ### install local requirements
-# pip3 install -r requirements.txt
+pip3 install -r requirements.txt
 
 ### direct debug without rebuild
 # infra init
