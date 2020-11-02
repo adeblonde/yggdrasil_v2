@@ -31,4 +31,7 @@ types = {
 }
 
 ### SSH keys
-ssh_public_key_folder = "../../secrets/ssh/dev/public/"
+ssh_public_key_folder = "../../secrets/ssh/SCOPE/public/"
+
+### OS user
+os_user = "debian"

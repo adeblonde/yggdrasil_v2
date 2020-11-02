@@ -5,12 +5,18 @@ import shutil
 import subprocess
 import yaml
 
-def config_init(logger, provider, scope, workfolder) :
+def config_init(logger, provider, scope, workfolder, data_path) :
+
+	""" adding ansible.cfg to scope """
+	source_ansible_cfg = os.path.join(data_path, 'libraries', 'ansible', 'ansible.cfg')
+	target_ansible_cfg = os.path.join(workfolder, 'inventories', scope, 'ansible.cfg')
+	shutil.copyfile(source_ansible_cfg, target_ansible_cfg)
 
 	""" create host file and ssh config file """
 
 	logger.info("Parsing Terraform output file")
 
+	inventory_folder = os.path.join(workfolder, 'inventories', scope)
 	terraform_output_file = os.path.join(inventory_folder, 'terraform_output.json')
 
 	""" check if Terraform output file does exist """
@@ -23,41 +29,72 @@ def config_init(logger, provider, scope, workfolder) :
 	""" we create a dictionary of all VMs in order to gather their connection properties """
 	machines = dict()
 
-	if 'private_ips' not in tf_outputs.keys() :
-		raise Exception("Missing list of VMs private IPs")
+	if 'vms' not in tf_outputs.keys() :
+		raise Exception("Missing list of VMs")
 
-	for key, value in tf_outputs['private_ips'] :
-		machines[key] = {
-			'private_ip' : value,
-		}
-		for param in ["subnet", "network", "public_ip", "ssh_key", "group", "user"] :
-			if key in tf_outputs["machine_" + param] :
-				machines[key][param] = tf_outputs["machine_" + param][key]
-			if key in tf_outputs["subnet"] :
-				machine_subnet = tf_outputs["subnets"][key]
-				if machine_subnet in tf_outputs["private_subnets_escape_public_subnet"].keys() :
-					escape_public_subnet = tf_outputs["private_subnets_escape_public_subnet"][machine_subnet]
-					if escape_public_subnet in tf_outputs["public_subnet_bastion"] :
-						bastion_name = tf_outputs["public_subnet_bastion"][escape_public_subnet]
-						if bastion_name in tf_outputs["machine_public_ip"] :
-							machines[key]["ssh_bastion"] = tf_outputs["machine_public_ip"][bastion_name]
+	machines = tf_outputs['vms']['value']
+	requested_networks = tf_outputs['requested_networks']['value']
+
+	subnet_bastion = dict()
+
+	for machine_name, machine in machines.items() :
+		for param in ["subnet", "network_name", "public_ip", "ssh_key", "group", "user"] :
+			# print(machine.keys())
+			if param not in machine.keys() :
+				logger.info("Missing %s info in machine %s" % (param, machine_name))
+				exit()
+		if machine["group"] == "bastion" :
+			subnet_bastion[machine["subnet"]] = machine_name
+
+	for machine_name, machine in machines.items() :
+		# machine_subnet = machine["subnet"]
+		print(requested_networks[machine["network_name"]])
+		# print(machine["subnet"])
+		machine_escape_subnet = requested_networks[machine["network_name"]]["private_subnets_escape_public_subnet"]
+		# print(machine_subnet)
+		print(subnet_bastion)
+		if machine_escape_subnet in subnet_bastion.keys() :
+			machine_bastion = subnet_bastion[machine_escape_subnet]
+			machines[machine_name]["access_ip"] = machines[machine_bastion]["public_ip"]
+
+	# print(machines)
+
+	# for key, value in tf_outputs['vms']['value'] :
+	# 	machines[]
+
+	# for key, value in tf_outputs['private_ips'] :
+	# 	machines[key] = {
+	# 		'private_ip' : value,
+	# 	}
+	# 	for param in ["subnet", "network", "public_ip", "ssh_key", "group", "user"] :
+	# 		if key in tf_outputs["machine_" + param] :
+	# 			machines[key][param] = tf_outputs["machine_" + param][key]
+	# 		if key in tf_outputs["subnet"] :
+	# 			machine_subnet = tf_outputs["subnets"][key]
+	# 			if machine_subnet in tf_outputs["private_subnets_escape_public_subnet"].keys() :
+	# 				escape_public_subnet = tf_outputs["private_subnets_escape_public_subnet"][machine_subnet]
+	# 				if escape_public_subnet in tf_outputs["public_subnet_bastion"] :
+	# 					bastion_name = tf_outputs["public_subnet_bastion"][escape_public_subnet]
+	# 					if bastion_name in tf_outputs["machine_public_ip"] :
+	# 						machines[key]["ssh_bastion"] = tf_outputs["machine_public_ip"][bastion_name]
 
 	""" we create sets of machines according to their group name, network, and subnet belonging """
 	machines_per_category = dict()
-	categories = ["subnets", "networks", "groups"]
+	categories = ["subnet", "network_name", "group"]
 	for category in categories :
 		machines_per_category[category] = dict()
-		for elt in tf_outputs[category] :
-			eligible_machines = [machine for machine in machines if category[:-1] in machine.keys()]
-			machines_per_category[category][elt] = [machine for machine in eligible_machines if machine[category[:-1]] == elt ]
+		values_for_category = list(set([val[category] for val in machines.values()]))
+		for elt in values_for_category :
+			# eligible_machines = [machine for machine in machines if category in machine.keys()]
+			machines_per_category[category][elt] = [machine for _, machine in machines.items() if machine[category] == elt ]
 
 	""" we write the list of hosts, grouped by categories, into envt.hosts file """
-
+	print(machines_per_category)
 	output_string = """[all:vars]
 ansible_python_interpreter=/usr/bin/python3"""
 
 	for category in categories :
-		for elt, machine_list in machines_per_category[category] :
+		for elt, machine_list in machines_per_category[category].items() :
 			output_string += "\n\n[{}]".format(elt)
 			for machine in machine_list :
 				if machine["group"] == "bastion" :
@@ -68,14 +105,14 @@ ansible_python_interpreter=/usr/bin/python3"""
 	host_file = os.path.join(workfolder, 'inventories', scope, 'envt.hosts')
 
 	""" we write individual access to the machines """
-	for machine_name, machine in machines :
+	for machine_name, machine in machines.items() :
 		output_string += "\n\n[{}]".format(machine_name)
 		if machine["group"] == "bastion" :
 			output_string += "\n{}".format(machine["public_ip"])
 		else :
 			output_string += "\n{}".format(machine["private_ip"])
 
-	with open(host_file, "r") as f :
+	with open(host_file, "w") as f :
 		f.write(output_string)
 
 	""" we create a dictionary of all PaaS addresses """
@@ -116,8 +153,8 @@ ansible_python_interpreter=/usr/bin/python3"""
 		output_string += "[{}]\n".format(paas)
 		paas_dict = dict()
 		for paas_property in paas_services[paas] :
-			if paas_property in terraform_output_file.keys() :
-				for paas_instance_name, paas_instance_property in terraform_output_file[paas_property] :
+			if paas_property in tf_outputs.keys() :
+				for paas_instance_name, paas_instance_property in tf_outputs[paas_property] :
 					if paas_instance_name not in paas_dict.keys() :
 						paas_dict[paas_instance_name] = {
 							paas_property : paas_instance_property
@@ -135,7 +172,7 @@ ansible_python_interpreter=/usr/bin/python3"""
 
 	paas_file = os.path.join(workfolder, 'inventories', scope, 'paas.ini')
 
-	with open(paas_file, "r") as f :
+	with open(paas_file, "w") as f :
 		f.write(output_string)
 
 
@@ -144,11 +181,11 @@ ansible_python_interpreter=/usr/bin/python3"""
 	output_string_common = ""
 	output_string_bastion = ""
 
-	for machine in machines :
-		if machine["group"] == "bastion" :
-			output_string_common += "# {}\nHost {}\n ProxyCommand ssh -F ssh.cfg -W %h:%p {}\n User {}\n IdentityFile {}.pem\n\n".format(machine["group"], machine['private_ip'], machine['ssh_bastion'], machine['user'], os.path.join(workfolder, 'credentials', 'ssh', 'private', machine['ssh_key']))
+	for _, machine in machines.items() :
+		if machine["group"] != "bastion" :
+			output_string_common += "# {}\nHost {}\n ProxyCommand ssh -F ssh.cfg -W %h:%p {}\n User {}\n IdentityFile {}\n\n".format(machine["group"], machine['private_ip'], machine['access_ip'], machine['user'], os.path.join(workfolder, 'secrets', 'ssh', scope, 'private', machine['ssh_key']))
 		else :
-			output_string_bastion += "# {}\nHost {}\n Hostname {}\n User {}\n IdentityFile {}.pem\n\n".format(machine["group"], machine['public_ip'], machine['ssh_bastion'], machine['user'], os.path.join(workfolder, 'credentials', 'ssh', 'private', machine['ssh_key']))
+			output_string_bastion += "# {}\nHost {}\n Hostname {}\n User {}\n IdentityFile {}\n\n".format(machine["group"], machine['public_ip'], machine['public_ip'], machine['user'], os.path.join(workfolder, 'secrets', 'ssh', scope, 'private', machine['ssh_key']))
 
 	output_string_footer = """
 # multiplexing SSH
@@ -160,12 +197,12 @@ Host *
 
 	ssh_config_file = os.path.join(workfolder, 'inventories', scope, 'ssh.cfg')
 
-	with open(ssh_file, 'w') as f :
-		f.write(output_string_bastion + output_string_target + output_string_footer)
+	with open(ssh_config_file, 'w') as f :
+		f.write(output_string_bastion + output_string_common + output_string_footer)
 
 def config_apply(logger, exec_path, provider, scope, workfolder) :
 
-	logger.info("Apply configuration %s", action)
+	logger.info("Apply configuration")
 
 	configuration_file = os.path.join(workfolder, 'scopes', scope, 'configuration.yml')
 

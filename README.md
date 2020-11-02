@@ -10,7 +10,7 @@ Install Terraform by downloading the binary file from their Downloads section [h
 
 ### Ansible
 
-Install Ansible
+Install Ansible following the instruction [here](https://docs.ansible.com/ansible/latest/installation_guide/intro_installation.html)
 
 ## Using Yggdrasil
 

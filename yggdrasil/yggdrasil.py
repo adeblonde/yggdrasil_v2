@@ -52,7 +52,7 @@ def set_parameters(logger, configfile, params, variable=None) :
 @click.option('--scope','-s', default='dev', help='architecture scope')
 @click.option('--workfolder','-w', default='.', help='Location of the working folder that will be created with temporary file, name after \'config_name\'')
 @click.option('--region','-r', default='us-east-1', help='Location of the working folder that will be created with temporary file, name after \'config_name\'')
-@click.option('--blueprint','-r', default=None, help='Name of a cloud architecture blueprint from Yggdrasil\'s library for bootstrapping')
+@click.option('--blueprint','-r', default='dev', help='Name of a cloud architecture blueprint from Yggdrasil\'s library for bootstrapping')
 def ygg(stage, action, provider, scope, workfolder, credentials, region, blueprint) :
 
     """ we execute the run options with the provided arguments """
@@ -88,7 +88,7 @@ def infra(logger, action, provider, scope, workfolder, credentials_file, region,
 	logger.info("Entering stage infra")
 
 	""" check if action is allowed """
-	allowed_actions = ["apply", "init", "destroy", "plan"]
+	allowed_actions = ["apply", "init", "destroy", "plan", "output"]
 	if action not in allowed_actions :
 		logger.info("Action %s not allowed, action should be one of %s" % (action, " ".join(allowed_actions)))
 		exit()
@@ -107,14 +107,16 @@ def infra(logger, action, provider, scope, workfolder, credentials_file, region,
 		terraform_init.infra_init(logger, provider, scope, workfolder, exec_path, DATA_PATH, credentials_file, region, blueprint)
 
 	""" infra_action executes the 'action' infra function """
+	stdout = None
 	extra_params = []
 	if action == "output" :
 		inventory_folder = os.path.join(workfolder, 'inventories', scope)
 		makedir_p(inventory_folder)
 		terraform_output_file = os.path.join(inventory_folder, 'terraform_output.json')
-		extra_params = ["output", "-json", ">", terraform_output_file]
+		extra_params = ["-json"]
+		stdout = terraform_output_file
 	
-	terraform_init.infra_action(logger, action, extra_params, provider, scope, workfolder, exec_path)
+	terraform_init.infra_action(logger, action, extra_params, provider, scope, workfolder, exec_path, stdout)
 
 def config(logger, action, provider, scope, workfolder) :
 
@@ -127,7 +129,7 @@ def config(logger, action, provider, scope, workfolder) :
 		logger.info("ansible-playbook executable not found")
 
 	if action == "init" :
-		ansible_init.config_init(logger, provider, scope, workfolder)
+		ansible_init.config_init(logger, provider, scope, workfolder, DATA_PATH)
 
 	if action == "apply" :
 		ansible_init.config_apply(logger, exec_path, provider, scope, workfolder)

@@ -21,17 +21,21 @@ def prepare_ssh_keys(logger, provider, scope, workfolder) :
 	ssh_prefix = ""
 	with open(terraform_tfvars_file, 'r') as f :
 		terraform_tfvars = hcl.load(f)
-		print(terraform_tfvars)
 		tf_parts = terraform_tfvars['parts']
 		ssh_prefix = "_".join([terraform_tfvars['account'], terraform_tfvars['cost_center'], terraform_tfvars['environment']])
 
-	ssh_keys = [ ssh_prefix + '_' + part + '_' + subpart for part, subparts in tf_parts.items() for subpart in subparts]
+	ssh_keys = [ ssh_prefix + '_' + part  for part in tf_parts.keys()]
+	# ssh_keys = [ ssh_prefix + '_' + part + '_' + subpart for part, subparts in tf_parts.items() for subpart in subparts]
+
+	os_user = terraform_tfvars['os_user']
 
 	for ssh_key in ssh_keys :
 		public_ssh_key_folder = os.path.join(workfolder, 'secrets', 'ssh', scope, 'public')
-		public_ssh_key_file = os.path.join(public_ssh_key_folder, ssh_key + "_public.pem")
+		public_ssh_key_file = os.path.join(public_ssh_key_folder, ssh_key + ".pub")
+		# public_ssh_key_file = os.path.join(public_ssh_key_folder, ssh_key + "_public.pem")
 		private_ssh_key_folder = os.path.join(workfolder, 'secrets', 'ssh', scope, 'private')
-		private_ssh_key_file = os.path.join(private_ssh_key_folder, ssh_key + '.pem')
+		private_ssh_key_file = os.path.join(private_ssh_key_folder, ssh_key)
+		# private_ssh_key_file = os.path.join(private_ssh_key_folder, ssh_key + '.pem')
 		logger.info("Creating SSH key %s" % private_ssh_key_file)
 		if (not os.path.exists(private_ssh_key_file)) | (not os.path.exists(public_ssh_key_file)) :
 			exec_path = find_exec_path(logger, 'ssh-keygen')
@@ -39,18 +43,18 @@ def prepare_ssh_keys(logger, provider, scope, workfolder) :
 				command = [exec_path,
 					'-t',
 					'rsa',
-					'-b',
-					'2048',
 					'-f',
-					ssh_key + ".pem",
+					ssh_key,
 					'-N',
-					'""'
+					'',
+					'-C',
+					os_user
 				]
 				logger.info("Execution of command :\n%s\nin folder %s" % (' '.join(command), private_ssh_key_folder))
 				result = subprocess.call(command, cwd=private_ssh_key_folder)
 				logger.info("Result of ssh-keygen call : %s" % result)
 
-				created_public_ssh_key = os.path.join(private_ssh_key_folder, ssh_key + '.pem.pub')
+				created_public_ssh_key = os.path.join(private_ssh_key_folder, ssh_key + '.pub')
 				if not os.path.exists(created_public_ssh_key) :
 					logger.info("The public key %s has not been created !" % created_public_ssh_key)
 					exit()
@@ -164,7 +168,7 @@ def load_provider_credentials(logger, provider, scope, workfolder) :
 	else :
 		raise Exception("Cannot read credentials file for this provider")
 
-def infra_init(logger, provider, scope, workfolder, exec_path, data_path, credentials_file, region, upgrade=False) :
+def infra_init(logger, provider, scope, workfolder, exec_path, data_path, credentials_file, region, blueprint, upgrade=False) :
 
 	logger.info("Init action")
 
@@ -206,6 +210,27 @@ def infra_init(logger, provider, scope, workfolder, exec_path, data_path, creden
 	makedir_p(target_scope_folder)
 	copy_tree(source_scopes_folder, target_scope_folder)
 
+	logger.info("Preparing architecture from blueprint %s" % blueprint)
+	source_blueprint_folder = os.path.join(data_path, "libraries", 'blueprints', blueprint)
+	if blueprint.split(':')[0] == "local" :
+		blueprint = blueprint.split(':')[1]
+		if os.path.exists(blueprint) :
+			source_blueprint_folder = blueprint
+		else :
+			logger.info("Provided local blueprint is not a folder")
+			exit()
+	copy_tree(source_blueprint_folder, target_scope_folder)
+
+	""" setting SSH public keys folder in scope tf file """
+	target_terraform_tfvars_file = os.path.join(target_scope_folder, 'terraform.tfvars')
+	if os.path.isfile(target_terraform_tfvars_file) :
+		buffer_string = ""
+		with open(target_terraform_tfvars_file, 'r') as f :
+			buffer_string = f.read()
+		buffer_string = buffer_string.replace('SCOPE', scope)
+		with open(target_terraform_tfvars_file, 'w') as f :
+			f.write(buffer_string)
+
 	""" we get the 'provider.tf' file specific to the chosen provider """
 	logger.info("Setting scope provider")
 	source_provider = os.path.join(data_path, 'libraries', 'terraform', 'providers', provider + '.tf')
@@ -239,7 +264,7 @@ def infra_init(logger, provider, scope, workfolder, exec_path, data_path, creden
 
 	return
 
-def infra_action(logger, action, extra_params, provider, scope, workfolder, exec_path) :
+def infra_action(logger, action, extra_params, provider, scope, workfolder, exec_path, stdout) :
 
 	logger.info("Apply action %s", action)
 
@@ -250,15 +275,23 @@ def infra_action(logger, action, extra_params, provider, scope, workfolder, exec
 	tfvars_folder = os.path.join(workfolder, 'scopes', scope, 'modules')
 
 	# print([os.path.join('modules', f[-7:]) for f in os.listdir(tfvars_folder) if (os.path.isfile(os.path.join(tfvars_folder, f)) )])
-	tfvars_list = [os.path.join('modules', f) for f in os.listdir(tfvars_folder) if (os.path.isfile(os.path.join(tfvars_folder, f)) & (f[-7:] == '.tfvars'))]
-	for tfvars_file in tfvars_list :
-		extra_params += ['--var-file=' + tfvars_file]
+	if action != "output" :
+		tfvars_list = [os.path.join('modules', f) for f in os.listdir(tfvars_folder) if (os.path.isfile(os.path.join(tfvars_folder, f)) & (f[-7:] == '.tfvars'))]
+		for tfvars_file in tfvars_list :
+			extra_params = ['--var-file=' + tfvars_file] + extra_params
+
+	else :
+		if os.path.exists(os.path.dirname(stdout)) :
+			stdout = open(stdout, "w")
+		else :
+			logger.info("Cannot open Terraform output file %s" % stdout)
+			exit()
 
 	scope_folder = os.path.join(workfolder, 'scopes', scope)
 	try :
 		command = [exec_path, action] + extra_params
 		logger.info("Execution of command :\n%s\nin folder %s" % (' '.join(command), scope_folder))
-		result = subprocess.call(command, env=env, cwd=scope_folder)
+		result = subprocess.call(command, env=env, cwd=scope_folder, stdout=stdout)
 		logger.info("Result of Terraform call : %s" % result)
 	except :
 		logger.info("Error in the execution of Terraform :\n")

@@ -1,6 +1,9 @@
 ### system images
 system_images = {
-	"debian" : "debian-9"
+	gcp = {
+		debian = "debian-9"
+		ubuntu_server = "ubuntu-2004-lts"
+	}	
 }
 
 ### GCP disk types :
@@ -10,7 +13,7 @@ system_images = {
 generic_volume_parameters = {
 	small_root = {
 		type = "pd-ssd"
-		size = 8
+		size = 16
 	}
 	large_root = {
 		type = "pd-ssd"
@@ -18,7 +21,7 @@ generic_volume_parameters = {
 	}
 	large_data = {
 		type = "pd-standard"
-		size = 512
+		size = 128
 	}
 	none = {
 		type = "pd-standard"

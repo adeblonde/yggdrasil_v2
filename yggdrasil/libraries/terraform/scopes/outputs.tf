@@ -14,11 +14,24 @@ output common_labels {
 
 output common_name_prefix {
   value       = local.common_name_prefix
-  sensitive   = true
   description = "description"
   depends_on  = []
 }
 
-# output vm_request_vms {
-# 	value = module.vm["first_public_vm"]
-# }
+output vms {
+  value       = {
+	  for vm_name, vm in module.vm :
+	  	vm_name => vm.vm_parameters
+  }
+  description = "description"
+  depends_on  = []
+}
+
+output networks {
+  value       = {
+	  for network_name, network in module.network :
+	  	network_name => network.network_parameters
+  }
+  description = "description"
+  depends_on  = []
+}

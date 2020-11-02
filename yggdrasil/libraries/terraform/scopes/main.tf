@@ -56,6 +56,8 @@ locals {
 			module_prefix       = local.common_name_prefix[network.part]["all_subparts"]
 			private_subnets = network.private_subnets
 			public_subnets  = network.public_subnets
+			# private_subnets_escape_public_subnet = lookup(lookup(network, "private_subnets_escape_public_subnet"), {}, "")
+			private_subnets_escape_public_subnet = network.private_subnets_escape_public_subnet
 		}
 	}
 
@@ -67,16 +69,18 @@ locals {
 		for network_name, network_vms in var.vm : [
 			for subnet_name, subnet_vms in network_vms : [
 				for vm_name, vm in subnet_vms : {
+					vm_full_name = format("%s_%s_vm", local.common_name_prefix[vm.part][vm.subpart], vm_name)
 					vm_name = vm_name
 					user = vm.user
 					network_name = network_name
 					subnet_name = subnet_name
+					network_prefix = local.common_name_prefix[vm.part]["all_subparts"]
 					module_labels     = local.common_labels[vm.part][vm.subpart]
 					module_prefix       = local.common_name_prefix[vm.part][vm.subpart]
 					group = vm.group
 					instance_type = lookup(var.types[var.cloud_provider], vm.type)
 					availability_zone = vm.availability_zone
-					system_image = lookup(var.system_images, vm.system_image)
+					system_image = lookup(var.system_images[var.cloud_provider], vm.system_image)
 					subnet_type = vm.subnet_type
 					private_ip = vm.private_ip
 					root_volume = var.generic_volume_parameters[vm.root_volume_type]
@@ -108,7 +112,7 @@ locals {
 	])
 
 	formatted_vm = { for vm in local.formatted_vm_list :
-		vm.vm_name => vm
+		vm.vm_full_name => vm
 	}
 
 }

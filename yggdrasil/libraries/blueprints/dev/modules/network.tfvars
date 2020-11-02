@@ -13,13 +13,12 @@ network = {
 		}
 		private_subnets = {
 			fst_pv_subnet = {
-			cidr_block = "10.0.3.0/24"
-				private_subnets_escape_public_subnet = "first_public_subnet"
+				cidr_block = "10.0.3.0/24"
 			}
 			snd_pv_subnet = {
 				cidr_block = "10.0.4.0/24"
-				private_subnets_escape_public_subnet = "second_public_subnet"
 			}
 		}
+		private_subnets_escape_public_subnet = "fst_pb_subnet"
 	}
 }

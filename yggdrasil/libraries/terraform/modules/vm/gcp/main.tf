@@ -5,7 +5,8 @@
 resource "google_compute_firewall" "security_group_vm" {
 	
 	name = substr(replace(format("%s_%s_sg", var.vm.module_prefix, var.vm.vm_name), "_", "-"), 0, 61)
-	network = var.vm.network_name
+	network = substr(replace(format("%s_%s_network", var.vm.network_prefix, var.vm.network_name), "_", "-"), 0, 61)
+	# network = var.vm.network_name
 	direction = "INGRESS"
 
 	allow {
@@ -14,7 +15,7 @@ resource "google_compute_firewall" "security_group_vm" {
 
 	allow {
 		protocol = "tcp"
-		ports = [for rule in var.vm.ingress_rules : rule.to_port]
+		ports = [for rule in var.vm.ingress_rules : rule.to_port if rule.protocol != "icmp"]
 	}
 }
 
@@ -30,7 +31,7 @@ resource "google_compute_instance" "virtual_machine" {
 
 	depends_on = [google_compute_firewall.security_group_vm]
 	
-	name = substr(replace(format("%s_%s_vm_root_volume", var.vm.module_prefix, var.vm.vm_name), "_", "-"), 0, 61)
+	name = substr(replace(format("%s_%s_vm", var.vm.module_prefix, var.vm.vm_name), "_", "-"), 0, 61)
 	machine_type = var.vm.instance_type
 	zone = var.vm.availability_zone
 
@@ -44,22 +45,31 @@ resource "google_compute_instance" "virtual_machine" {
 	}
 
 	network_interface {
-		network = substr(replace(format("%s_%s_network", var.vm.module_prefix, var.vm.network_name), "_", "-"), 0, 61)
-		subnetwork = substr(replace(format("%s_%s_%s_%s_subnet", var.vm.module_prefix, var.vm.network_name, var.vm.subnet_name, var.vm.subnet_type), "_", "-"), 0, 61)
+		network = substr(replace(format("%s_%s_network", var.vm.network_prefix, var.vm.network_name), "_", "-"), 0, 61)
+		subnetwork = substr(replace(format("%s_%s_%s_%s_subnet", var.vm.network_prefix, var.vm.network_name, var.vm.subnet_name, var.vm.subnet_type), "_", "-"), 0, 61)
 		network_ip = var.vm.private_ip
-	}
 
-	### dynamic creation of public IPs
-	dynamic "network_interface" {
-		for_each = google_compute_address.elastic_ip
+		### dynamic creation of public IPs
+		dynamic "access_config" {
+			for_each = google_compute_address.elastic_ip
 
-		content {
-			subnetwork = substr(replace(format("%s_%s_%s_%s_subnet", var.vm.module_prefix, var.vm.network_name, var.vm.subnet_name, var.vm.subnet_type), "_", "-"), 0, 61)
-			access_config {
-				nat_ip = network_interface.value.address
+			content {
+				nat_ip = access_config.value.address
 			}
 		}
 	}
+
+	# ### dynamic creation of public IPs
+	# dynamic "network_interface" {
+	# 	for_each = google_compute_address.elastic_ip
+
+	# 	content {
+	# 		subnetwork = substr(replace(format("%s_%s_%s_%s_subnet", var.vm.network_prefix, var.vm.network_name, var.vm.subnet_name, var.vm.subnet_type), "_", "-"), 0, 61)
+	# 		access_config {
+	# 			nat_ip = network_interface.value.address
+	# 		}
+	# 	}
+	# }
 
 	# root_block_device {
 	# 	type = var.vm.root_volume.type
@@ -80,12 +90,12 @@ resource "google_compute_instance" "virtual_machine" {
         {
             "name" = substr(replace(format("%s_%s_vm_root_volume", var.vm.module_prefix, var.vm.vm_name), "_", "-"), 0, 61)
 			"group" = var.vm.group,
-			"ssh_key" = format("%s_key", var.vm.module_prefix)
+			"ssh_key" = format("%s", var.vm.network_prefix)
         } 
     )
 
 	metadata = {
-    	ssh-keys = "${var.vm.user}:${file(format("%s%s_public.pem", var.vm.ssh_public_key_path, var.vm.module_prefix))}"
+    	ssh-keys = "${var.vm.user}:${file(format("%s%s.pub", var.vm.ssh_public_key_path, var.vm.network_prefix))}"
   	}
 
 }
@@ -100,7 +110,7 @@ resource "google_compute_disk" "vm_data_volume" {
 
 	name = substr(replace(format("%s_%s_data_volume", var.vm.module_prefix, var.vm.vm_name), "_", "-"), 0, 61)
 
-	physical_block_size_bytes = var.vm.data_volume.size
+	size = var.vm.data_volume.size
 	type = var.vm.data_volume.type
 
 	labels = merge(

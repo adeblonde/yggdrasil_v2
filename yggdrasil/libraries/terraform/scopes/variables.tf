@@ -59,9 +59,9 @@ variable "network" {
 		private_subnets = map(
 			object({
 				cidr_block = string
-				private_subnets_escape_public_subnet = string
 			})
 		)
+		private_subnets_escape_public_subnet = string
 	}))
 }
 
@@ -76,6 +76,11 @@ variable types {
 
 ### SSH keys
 variable ssh_public_key_folder {
-  description = "description"
+  description = "path to public SSH keys in target workfolder"
 }
 
+### OS user
+variable os_user {
+	description = "name of the user for VMs"
+	type = string
+}

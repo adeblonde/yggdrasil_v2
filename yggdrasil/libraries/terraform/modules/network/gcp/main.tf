@@ -39,7 +39,7 @@ resource "google_compute_subnetwork" "public_subnets" {
 
     for_each = var.network.public_subnets
 
-	name          = substr(replace(format("%s_%s_%s_private_subnet", var.network.module_prefix, var.network.network_name, each.key), "_", "-"), 0, 61)
+	name          = substr(replace(format("%s_%s_%s_public_subnet", var.network.module_prefix, var.network.network_name, each.key), "_", "-"), 0, 61)
 
     network = google_compute_network.network.name
     ip_cidr_range = each.value.cidr_block
