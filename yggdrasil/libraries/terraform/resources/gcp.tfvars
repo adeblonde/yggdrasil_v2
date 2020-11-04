@@ -3,6 +3,7 @@ system_images = {
 	gcp = {
 		debian = "debian-9"
 		ubuntu_server = "ubuntu-2004-lts"
+		centos = "centos-8"
 	}	
 }
 

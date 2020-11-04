@@ -84,3 +84,9 @@ variable os_user {
 	description = "name of the user for VMs"
 	type = string
 }
+
+### kubernetes clusters
+variable k8s_cluster {
+	description = "Map of all managed kubernetes clusters"
+	type = map(any)
+}

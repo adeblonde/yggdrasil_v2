@@ -115,4 +115,21 @@ locals {
 		vm.vm_full_name => vm
 	}
 
+	### formatting kubernetes clusters
+	formatted_k8s = { for k8s_key, k8s_cluster in var.k8s_cluster :
+		k8s_key => {
+			cluster_name  = k8s_key
+			module_labels = local.common_labels[k8s_cluster.part]["all_subparts"]
+			module_prefix = local.common_name_prefix[k8s_cluster.part]["all_subparts"]
+			network = k8s_cluster.network
+			subnetworks = k8s_cluster.subnetworks
+			zones = k8s_cluster.zones
+			username = k8s_cluster.username,
+			password = k8s_cluster.password,
+			system_image = lookup(var.system_images[var.cloud_provider], k8s_cluster.system_image)
+			instance_type = lookup(var.types[var.cloud_provider], k8s_cluster.instance_type)
+			desired_size = k8s_cluster.desired_size
+		}
+	}
+
 }

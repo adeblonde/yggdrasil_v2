@@ -63,7 +63,9 @@ resource "aws_subnet" "public_subnets" {
 
 ############
 # Internet Gateway
-# allows communication between network and Internet
+# allows communication between network and Internet, both ways
+# all VMs with a public IP are allowed to reach the Internet
+# through the Internet Gateway
 ############
 
 resource "aws_internet_gateway" "internet_gateway" {
@@ -100,6 +102,7 @@ resource "aws_eip" "elastic_ip" {
 # NAT Gateway
 # allows communication from subnets to Internet egress only (for private subnets)
 # used with an elastic IP
+# The NAT Gateway allows all private VMs (i.e. without a public IP) to reach Internet, with the same IP (the one from the NAT Gateway)
 ############
 
 resource "aws_nat_gateway" "nat_gateway" {

@@ -36,11 +36,13 @@ module "vm" {
 	# egress_rules = each.value.egress_rules
 }
 
-# ### kubernetes : contains managed kubernetes clusters
-# module "kubernetes" {
-#   source = "../../terraform/kubernetes"
+### kubernetes : contains managed kubernetes clusters
+module "kubernetes" {
+  source = "../../terraform/kubernetes"
 
-#   for_each = var.formatted_k8s
+  for_each = local.formatted_k8s
+	
+	k8s_cluster = each.value
 
 #   k8s_cluster_name        = each.key
 #   module_labels     = each.value.module_labels
@@ -48,4 +50,4 @@ module "vm" {
 #   private_subnets = each.value.private_subnets
 #   public_subnets  = each.value.public_subnets
 
-# }
+}

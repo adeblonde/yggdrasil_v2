@@ -1,30 +1,47 @@
 # GKE cluster
 resource "google_container_cluster" "k8s_cluster" {
-  name = format("%s_%s_k8s_cluster", var.module_prefix, var.k8s_cluster_name)
-  location = var.region
+  name = substr(replace(format("%s_%s_k8s_cluster", var.k8s_cluster.module_prefix, var.k8s_cluster.cluster_name), "_", "-"), 0, 40)
+#   format("%s_%s_k8s_cluster", var.k8s_cluster.module_prefix, var.k8s_cluster.cluster_name)
+#   location = var.region
+  location = var.k8s_cluster.zones[0]
 
   remove_default_node_pool = true
   initial_node_count       = 1
 
-  network    = google_compute_network.vpc.name
-  subnetwork = google_compute_subnetwork.subnet.name
+#   network    = google_compute_network.vpc.name
+#   subnetwork = google_compute_subnetwork.subnet.name
+
+#   network = var.k8s_cluster.network
+#   subnetwork = var.k8s_cluster.subnetworks[0]
+
+  network = substr(replace(format("%s_%s_network", var.k8s_cluster.module_prefix, var.k8s_cluster.network), "_", "-"), 0, 61)
+  subnetwork = substr(replace(format("%s_%s_%s_private_subnet", var.k8s_cluster.module_prefix, var.k8s_cluster.network, var.k8s_cluster.subnetworks[0]), "_", "-"), 0, 61)
 
   master_auth {
-    username = var.gke_username
-    password = var.gke_password
+    username = var.k8s_cluster.username
+    password = var.k8s_cluster.password
 
     client_certificate_config {
       issue_client_certificate = false
     }
   }
+
+#   metadata = merge(
+#         var.k8s_cluster.module_labels,
+#         {
+#             "name" = substr(replace(format("%s_%s_k8s_cluster", var.k8s_cluster.module_prefix, var.k8s_cluster.cluster_name), "_", "-"), 0, 61)
+#         } 
+#     )
 }
 
 # Separately Managed Node Pool
 resource "google_container_node_pool" "primary_nodes" {
-  name       = format("%s_%s_k8s_cluster", var.module_prefix, var.k8s_cluster_name)
-  location   = var.region
+  name       = substr(replace(format("%s_%s_k8s_node_group", var.k8s_cluster.module_prefix, var.k8s_cluster.cluster_name), "_", "-"), 0, 40)
+#   format("%s_%s_k8s_node_group", var.k8s_cluster.module_prefix, var.k8s_cluster.cluster_name)
+#   location   = var.region
+  location = var.k8s_cluster.zones[0]
   cluster    = google_container_cluster.k8s_cluster.name
-  node_count = var.gke_num_nodes
+  node_count = var.k8s_cluster.desired_size
 
   node_config {
     oauth_scopes = [
@@ -32,208 +49,212 @@ resource "google_container_node_pool" "primary_nodes" {
       "https://www.googleapis.com/auth/monitoring",
     ]
 
-    labels = {
-      env = var.project_id
-    }
+    metadata = merge(
+        var.k8s_cluster.module_labels,
+        {
+            "name" = substr(replace(format("%s_%s_k8s_node_group", var.k8s_cluster.module_prefix, var.k8s_cluster.cluster_name), "_", "-"), 0, 61)
+        } 
+    )
 
     # preemptible  = true
-    machine_type = "n1-standard-1"
-    tags         = ["gke-node", "${var.project_id}-gke"]
-    metadata = {
-      disable-legacy-endpoints = "true"
-    }
+    machine_type = var.k8s_cluster.instance_type
+	# image_type = var.k8s_cluster.image_type
+    # tags         = ["gke-node", "${var.project_id}-gke"]
+    # metadata = {
+    #   disable-legacy-endpoints = "true"
+    # }
   }
 }
 
-############
-# Security Group / Firewall group
-############
+# ############
+# # Security Group / Firewall group
+# ############
 
-resource "aws_security_group" "security_group_node" {
+# resource "aws_security_group" "security_group_node" {
 	
-	name = format("%s_%s_sg", var.module_prefix, var.k8s_cluster_name)
-	description = var.description
-	vpc_id = var.network_ids[var.network_name]
-	revoke_rules_on_delete = true
+# 	name = format("%s_%s_sg", var.module_prefix, var.k8s_cluster_name)
+# 	description = var.description
+# 	vpc_id = var.network_ids[var.network_name]
+# 	revoke_rules_on_delete = true
 
-	dynamic "ingress" {
-		for_each = var.ingress_rules
+# 	dynamic "ingress" {
+# 		for_each = var.ingress_rules
 
-		content {
-			description = ingress.value.description
-			from_port = ingress.value.from_port
-			to_port = ingress.value.to_port
-			protocol = ingress.value.protocol
-			cidr = ingress.value.cidr
-		}
-	}
+# 		content {
+# 			description = ingress.value.description
+# 			from_port = ingress.value.from_port
+# 			to_port = ingress.value.to_port
+# 			protocol = ingress.value.protocol
+# 			cidr = ingress.value.cidr
+# 		}
+# 	}
 
-	dynamic "egress" {
-		for_each = var.egress_rules
+# 	dynamic "egress" {
+# 		for_each = var.egress_rules
 
-		content {
-			description = egress.value.description
-			from_port = egress.value.from_port
-			to_port = egress.value.to_port
-			protocol = egress.value.protocol
-			cidr = egress.value.cidr
-		}
-	}
+# 		content {
+# 			description = egress.value.description
+# 			from_port = egress.value.from_port
+# 			to_port = egress.value.to_port
+# 			protocol = egress.value.protocol
+# 			cidr = egress.value.cidr
+# 		}
+# 	}
 
-	tags = merge(
-        var.module_tags,
-        {
-            "name" = format("%s_%s_firewall", var.module_prefix, var.k8s_cluster_name)
-        }
-    )
-}
+# 	tags = merge(
+#         var.module_tags,
+#         {
+#             "name" = format("%s_%s_firewall", var.module_prefix, var.k8s_cluster_name)
+#         }
+#     )
+# }
 
-############
-# Kubernetes Cluster
-############
+# ############
+# # Kubernetes Cluster
+# ############
 
-resource "aws_eks_cluster" "k8s_cluster" {
+# resource "aws_eks_cluster" "k8s_cluster" {
 
-    name = format("%s_%s_k8s_cluster", var.module_prefix, var.k8s_cluster_name)
+#     name = format("%s_%s_k8s_cluster", var.module_prefix, var.k8s_cluster_name)
 
-    role_arn = aws_iam_role.k8s_role.arn
+#     role_arn = aws_iam_role.k8s_role.arn
 
-    vpc_config = {
-        subnet_ids = [for subnet_name in var.k8s_cluster_subnets : var.subnet_ids[subnet_name]]
-        security_group_ids = [aws_security_group.security_group_node.id]
-        endpoint_private_access = true
-    } 
+#     vpc_config = {
+#         subnet_ids = [for subnet_name in var.k8s_cluster_subnets : var.subnet_ids[subnet_name]]
+#         security_group_ids = [aws_security_group.security_group_node.id]
+#         endpoint_private_access = true
+#     } 
 
-    tags = merge(
-        var.module_tags,
-        {
-            "name" = format("%s_%s_k8s_cluster", var.module_prefix, var.k8s_cluster_name)
-        }
-    )
+#     tags = merge(
+#         var.module_tags,
+#         {
+#             "name" = format("%s_%s_k8s_cluster", var.module_prefix, var.k8s_cluster_name)
+#         }
+#     )
 
-}
+# }
 
-############
-# Node groups
-############
+# ############
+# # Node groups
+# ############
 
-resource "aws_eks_node_group" "k8s_node_groups" {
+# resource "aws_eks_node_group" "k8s_node_groups" {
 
-    for_each = var.k8s_node_groups
+#     for_each = var.k8s_node_groups
 
-    cluster_name = format("%s_%s_k8s_cluster", var.module_prefix, var.k8s_cluster_name)
-    node_group_name = format("%s_%s_%s_k8s_node_group", var.module_prefix, each.key, var.k8s_cluster_name)
-    node_role_arn = aws_iam_role.k8s_role_node_group.arn
-    subnet_ids = [for subnet_name in each.value.k8s_cluster_subnets : var.subnet_ids[subnet_name]]
-    remote_access {
-        ec2_ssh_key = format("%s_%s_%s_k8s_ssh_key", var.module_prefix, var.k8s_cluster_name, each.key)
-    }
+#     cluster_name = format("%s_%s_k8s_cluster", var.module_prefix, var.k8s_cluster_name)
+#     node_group_name = format("%s_%s_%s_k8s_node_group", var.module_prefix, each.key, var.k8s_cluster_name)
+#     node_role_arn = aws_iam_role.k8s_role_node_group.arn
+#     subnet_ids = [for subnet_name in each.value.k8s_cluster_subnets : var.subnet_ids[subnet_name]]
+#     remote_access {
+#         ec2_ssh_key = format("%s_%s_%s_k8s_ssh_key", var.module_prefix, var.k8s_cluster_name, each.key)
+#     }
 
-    scaling_config {
-        desired_size = each.value.desired_size
-        max_size = each.value.max_size
-        min_size = each.value.min_size
-    }
+#     scaling_config {
+#         desired_size = each.value.desired_size
+#         max_size = each.value.max_size
+#         min_size = each.value.min_size
+#     }
 
-    depends_on = [aws_eks_cluster.k8s_cluster]
+#     depends_on = [aws_eks_cluster.k8s_cluster]
 
-    ami_type = var.system_image
-    instance_types = [var.instance_type]
-    disk_size = var.disk_size
+#     ami_type = var.system_image
+#     instance_types = [var.instance_type]
+#     disk_size = var.disk_size
 
-    tags = merge(
-        var.module_tags,
-        {
-            "name" = format("%s_%s_%s_k8s_node_group", var.module_prefix, var.k8s_cluster_name, each.key)
-        }
-    )
+#     tags = merge(
+#         var.module_tags,
+#         {
+#             "name" = format("%s_%s_%s_k8s_node_group", var.module_prefix, var.k8s_cluster_name, each.key)
+#         }
+#     )
 
-}
+# }
 
-############
-# Role for K8s cluster
-############
+# ############
+# # Role for K8s cluster
+# ############
 
-resource "aws_iam_role" "k8s_role" {
+# resource "aws_iam_role" "k8s_role" {
 
-    name = format("%s_%s_k8s_cluster_role", var.module_prefix, var.k8s_cluster_name)
+#     name = format("%s_%s_k8s_cluster_role", var.module_prefix, var.k8s_cluster_name)
 
-    assume_role_policy = <<POLICY
-{
-    "Version": "2012-10-17"
-    "Statement": [
-        {
-            "Effect": "Allow",
-            "Principal": {
-                "Service": "eks.amazonaws.com"
-            },
-            "Action": "sts:AssumeRole"
-        }
-    ]
-}
-POLICY
-}
+#     assume_role_policy = <<POLICY
+# {
+#     "Version": "2012-10-17"
+#     "Statement": [
+#         {
+#             "Effect": "Allow",
+#             "Principal": {
+#                 "Service": "eks.amazonaws.com"
+#             },
+#             "Action": "sts:AssumeRole"
+#         }
+#     ]
+# }
+# POLICY
+# }
 
-############
-# Role for K8s cluster node groupe
-############
+# ############
+# # Role for K8s cluster node groupe
+# ############
 
-resource "aws_iam_role" "k8s_role_node_group" {
+# resource "aws_iam_role" "k8s_role_node_group" {
 
-    name = format("%s_%s_k8s_cluster_role_node_group", var.module_prefix, var.k8s_cluster_name)
+#     name = format("%s_%s_k8s_cluster_role_node_group", var.module_prefix, var.k8s_cluster_name)
 
-    assume_role_policy = <<POLICY
-{
-    "Version": "2012-10-17"
-    "Statement": [
-        {
-            "Effect": "Allow",
-            "Principal": {
-                "Service": "ec2.amazonaws.com"
-            },
-            "Action": "sts:AssumeRole"
-        }
-    ]
-}
-POLICY
-}
+#     assume_role_policy = <<POLICY
+# {
+#     "Version": "2012-10-17"
+#     "Statement": [
+#         {
+#             "Effect": "Allow",
+#             "Principal": {
+#                 "Service": "ec2.amazonaws.com"
+#             },
+#             "Action": "sts:AssumeRole"
+#         }
+#     ]
+# }
+# POLICY
+# }
 
-############
-# Role policies
-############
+# ############
+# # Role policies
+# ############
 
-resource "aws_iam_role_policy_attachment" "k8s_cluster_policy" {
+# resource "aws_iam_role_policy_attachment" "k8s_cluster_policy" {
 
-    policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
-    role = aws_iam_role.k8s_role.name
-}
+#     policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
+#     role = aws_iam_role.k8s_role.name
+# }
 
-resource "aws_iam_role_policy_attachment" "k8s_service_policy" {
+# resource "aws_iam_role_policy_attachment" "k8s_service_policy" {
 
-    policy_arn = "arn:aws:iam::aws:policy/AmazonEKSServicePolicy"
-    role = aws_iam_role.k8s_role.name
-}
+#     policy_arn = "arn:aws:iam::aws:policy/AmazonEKSServicePolicy"
+#     role = aws_iam_role.k8s_role.name
+# }
 
-resource "aws_iam_role_policy_attachment" "k8s_worker_node_policy" {
+# resource "aws_iam_role_policy_attachment" "k8s_worker_node_policy" {
 
-    for_each = var.k8s_node_groups
+#     for_each = var.k8s_node_groups
 
-    policy_arn = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
-    role = aws_iam_role.k8s_role_node_group[each.value].name
-}
+#     policy_arn = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
+#     role = aws_iam_role.k8s_role_node_group[each.value].name
+# }
 
-resource "aws_iam_role_policy_attachment" "k8s_cni_policy" {
+# resource "aws_iam_role_policy_attachment" "k8s_cni_policy" {
 
-    for_each = var.k8s_node_groups
+#     for_each = var.k8s_node_groups
 
-    policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
-    role = aws_iam_role.k8s_role_node_group[each.value].name
-}
+#     policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
+#     role = aws_iam_role.k8s_role_node_group[each.value].name
+# }
 
-resource "aws_iam_role_policy_attachment" "k8s_container_registry_policy" {
+# resource "aws_iam_role_policy_attachment" "k8s_container_registry_policy" {
 
-    for_each = var.k8s_node_groups
+#     for_each = var.k8s_node_groups
 
-    policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
-    role = aws_iam_role.k8s_role_node_group[each.value].name
-}
+#     policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
+#     role = aws_iam_role.k8s_role_node_group[each.value].name
+# }
