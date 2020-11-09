@@ -1,5 +1,5 @@
 output docker_registry {
-  value       = google_container_registry.registry.bucket_self_link
+  value       = aws_ecr_repository.registry.repository_url
   sensitive   = true
   description = "description"
   depends_on  = []

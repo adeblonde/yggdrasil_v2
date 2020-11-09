@@ -4,15 +4,15 @@
 
 resource "aws_vpc" "network" {
 
-    cidr_block = var.network_cidr
+    cidr_block = var.network.network_cidr
     enable_dns_hostnames = true
     enable_dns_support = true
     instance_tenancy = "default"
 
     tags = merge(
-        var.module_tags,
+        var.network.module_labels,
         {
-            "name" = format("%s_%s_network", var.module_prefix, var.network_name)
+            "name" = format("%s_%s_network", var.network.module_prefix, var.network.network_name)
         }
     )
 }
@@ -24,17 +24,17 @@ resource "aws_vpc" "network" {
 
 resource "aws_subnet" "private_subnets" {
 
-    for_each = var.private_subnets
+    for_each = var.network.private_subnets
 
-    vpc_id = aws_vpc.network.vpc_id
+    vpc_id = aws_vpc.network.id
     cidr_block = each.value.cidr_block
     availability_zone = each.value.availability_zone
     map_public_ip_on_launch = false
 
     tags = merge(
-        var.module_tags,
+        var.network.module_labels,
         {
-            "name" = format("%s_%s_%s_private_subnet", var.module_prefix, var.network_name, each.value.private_subnet_name)
+            "name" = format("%s_%s_%s_private_subnet", var.network.module_prefix, var.network.network_name, each.key)
         }
     )
 }
@@ -46,17 +46,17 @@ resource "aws_subnet" "private_subnets" {
 
 resource "aws_subnet" "public_subnets" {
 
-    for_each = var.public_subnets
+    for_each = var.network.public_subnets
 
-    vpc_id = aws_vpc.network.vpc_id
+    vpc_id = aws_vpc.network.id
     cidr_block = each.value.cidr_block
     availability_zone = each.value.availability_zone
     map_public_ip_on_launch = false
 
     tags = merge(
-        var.module_tags,
+        var.network.module_labels,
         {
-            "name" = format("%s_%s_%s_private_subnet", var.module_prefix, var.network_name, each.value.public_subnet_name)
+            "name" = format("%s_%s_%s_private_subnet", var.network.module_prefix, var.network.network_name, each.key)
         }
     )
 }
@@ -70,12 +70,12 @@ resource "aws_subnet" "public_subnets" {
 
 resource "aws_internet_gateway" "internet_gateway" {
 
-    vpc_id = aws_vpc.network.vpc_id
+    vpc_id = aws_vpc.network.id
 
     tags = merge(
-        var.module_tags,
+        var.network.module_labels,
         {
-            "name" = format("%s_%s_internet_gateway", var.module_prefix, var.network_name)
+            "name" = format("%s_%s_internet_gateway", var.network.module_prefix, var.network.network_name)
         }
     )
 
@@ -91,9 +91,9 @@ resource "aws_eip" "elastic_ip" {
     depends_on = [aws_internet_gateway.internet_gateway]
 
     tags = merge(
-        var.module_tags,
+        var.network.module_labels,
         {
-            "name" = format("%s_%s_elastic_ip", var.module_prefix, var.network_name)
+            "name" = format("%s_%s_elastic_ip", var.network.module_prefix, var.network.network_name)
         }
     )
 }
@@ -107,15 +107,15 @@ resource "aws_eip" "elastic_ip" {
 
 resource "aws_nat_gateway" "nat_gateway" {
 
-    for_each = var.public_subnets
+    for_each = var.network.public_subnets
 
     allocation_id = aws_eip.elastic_ip.id
     subnet_id = aws_subnet.public_subnets[each.key].id
 
     tags = merge(
-        var.module_tags,
+        var.network.module_labels,
         {
-            "name" = format("%s_%s_%s_nat_gateway", var.module_prefix, var.network_name, each.value.public_subnet_name)
+            "name" = format("%s_%s_%s_nat_gateway", var.network.module_prefix, var.network.network_name, each.key)
         }
     )
 
@@ -128,21 +128,21 @@ resource "aws_nat_gateway" "nat_gateway" {
 
 resource "aws_route_table" "private_route_tables" {
 
-    for_each = var.private_subnets
+    for_each = var.network.private_subnets
 
-    vpc_id = aws_vpc.network.vpc_id
+    vpc_id = aws_vpc.network.id
     route {
         cidr_block = "0.0.0.0/0"
-        nat_gateway_id = aws_nat_gateway.nat_gateway[each.value.attached_public_subnet].id
+        nat_gateway_id = aws_nat_gateway.nat_gateway[var.network.private_subnets_escape_public_subnet].id
     }
 }
 
 resource "aws_route_table_association" "private_rta" {
 
-    for_each = var.private_subnets
+    for_each = var.network.private_subnets
 
-    subnet_id = aws_subnet.private_subnets[each.value].id
-    route_table_id = aws_route_table.private_subnets[each.value].id
+    subnet_id = aws_subnet.private_subnets[each.key].id
+    route_table_id = aws_route_table.private_route_tables[each.key].id
 }
 
 ############
@@ -152,9 +152,9 @@ resource "aws_route_table_association" "private_rta" {
 
 resource "aws_route_table" "public_route_tables" {
 
-    for_each = var.public_subnets
+    for_each = var.network.public_subnets
 
-    vpc_id = aws_vpc.network.vpc_id
+    vpc_id = aws_vpc.network.id
     route {
         cidr_block = "0.0.0.0/0"
         gateway_id = aws_internet_gateway.internet_gateway.id
@@ -163,8 +163,8 @@ resource "aws_route_table" "public_route_tables" {
 
 resource "aws_route_table_association" "public_rta" {
 
-    for_each = var.public_subnets
+    for_each = var.network.public_subnets
 
-    subnet_id = aws_subnet.public_subnets[each.value].id
-    route_table_id = aws_route_table.public_subnets[each.value].id
+    subnet_id = aws_subnet.public_subnets[each.key].id
+    route_table_id = aws_route_table.public_route_tables[each.key].id
 }

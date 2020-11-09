@@ -35,3 +35,25 @@ output networks {
   description = "description"
   depends_on  = []
 }
+
+output kubernetes_cluster {
+  value       = {
+	  for k8s_cluster_name, k8s_cluster in module.kubernetes :
+	  	k8s_cluster.kubernetes_parameters.kubernetes_cluster_full_name => k8s_cluster.kubernetes_parameters
+  }
+  sensitive   = true
+  description = "description"
+  depends_on  = []
+}
+
+output container_registry {
+  value       = {
+	  docker_registry = {
+		  container_registry_url = (length(module.container_registry) > 0 ? module.container_registry.0.docker_registry : "null")
+	  }
+  }
+  sensitive   = true
+  description = "description"
+  depends_on  = []
+}
+

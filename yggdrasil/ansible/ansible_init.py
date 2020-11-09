@@ -48,11 +48,11 @@ def config_init(logger, provider, scope, workfolder, data_path) :
 
 	for machine_name, machine in machines.items() :
 		# machine_subnet = machine["subnet"]
-		print(requested_networks[machine["network_name"]])
+		# print(requested_networks[machine["network_name"]])
 		# print(machine["subnet"])
 		machine_escape_subnet = requested_networks[machine["network_name"]]["private_subnets_escape_public_subnet"]
 		# print(machine_subnet)
-		print(subnet_bastion)
+		# print(subnet_bastion)
 		if machine_escape_subnet in subnet_bastion.keys() :
 			machine_bastion = subnet_bastion[machine_escape_subnet]
 			machines[machine_name]["access_ip"] = machines[machine_bastion]["public_ip"]
@@ -130,8 +130,8 @@ ansible_python_interpreter=/usr/bin/python3"""
 			"kafka_zookeeper_connect_string",
 			"kafka_replica_count"
 		],
-		"docker_registry" : [
-			"registry_url"
+		"container_registry" : [
+			"container_registry_url"
 		],
 		"storage" : [
 			"storage_name"
@@ -150,25 +150,32 @@ ansible_python_interpreter=/usr/bin/python3"""
 	logger.info("Looking for PaaS services in Terraform output")
 	
 	for paas in paas_services.keys() :
-		output_string += "[{}]\n".format(paas)
-		paas_dict = dict()
-		for paas_property in paas_services[paas] :
-			if paas_property in tf_outputs.keys() :
-				for paas_instance_name, paas_instance_property in tf_outputs[paas_property] :
-					if paas_instance_name not in paas_dict.keys() :
-						paas_dict[paas_instance_name] = {
-							paas_property : paas_instance_property
-						}
-					else :
-						paas_dict[paas_instance_name][paas_instance_property] = paas_instance_property
+		if paas in tf_outputs.keys() :
+			output_string += "[{}]\n".format(paas)
+			paas_dict = tf_outputs[paas]['value']
+			# for paas_property in paas_services[paas] :
+			# 	# print(tf_outputs.keys())
+			# 	print(paas_property)
+			# 	print(tf_outputs[paas]['value'])
+			# 	paas_properties_output = tf_outputs[paas]['value']
+			# 	if paas_property in paas_properties_output.keys() :
+			# 		print(paas_property)
+			# 	for paas_instance_name, paas_instance_properties in paas_properties_output[paas_property] :
+			# 		if paas_instance_name not in paas_dict.keys() :
+			# 			paas_dict[paas_instance_name] = {
+			# 				paas_property : paas_instance_property
+			# 			}
+			# 		else :
+			# 			paas_dict[paas_instance_name][paas_instance_property] = paas_instance_property
 
-		for paas_instance, paas_properties in paas_dict :
-			output_string += "{} = {}".format(paas + '_name', paas_instance)
-			for paas_property_name, paas_property_value in paas_property :
-				output_string += " {} = {}".format(paas_property_name, paas_property_value)
-			output_string += "\n"
+			for paas_instance, paas_properties in paas_dict.items() :
+				output_string += "{} = {}".format(paas + '_name', paas_instance)
+				for paas_property_name, paas_property_value in paas_properties.items() :
+					if paas_property_name in paas_services[paas] :
+						output_string += " {} = {}".format(paas_property_name, paas_property_value)
+				output_string += "\n"
 
-		output_string += "\n\n"
+			output_string += "\n\n"
 
 	paas_file = os.path.join(workfolder, 'inventories', scope, 'paas.ini')
 

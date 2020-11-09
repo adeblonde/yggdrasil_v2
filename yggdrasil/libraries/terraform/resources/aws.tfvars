@@ -4,7 +4,13 @@ system_images = {
 		debian = "debian-9"
 		ubuntu_server = "ubuntu-2004-lts"
 		centos = "centos-8"
-	}	
+	}
+	aws = {
+		debian = "debian-9"
+		ubuntu_server = "ubuntu-2004-lts"
+		centos = "centos-8"
+		kubernetes = "AL2_x86_64"
+	}
 }
 
 ### GCP disk types :

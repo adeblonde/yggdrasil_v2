@@ -23,6 +23,7 @@ def load_aws_credentials(logger, aws_creds_file) :
 			data = f_read.read().split('\n')[1].split(',')
 			aws_creds['aws_access_key_id'] = data[2]
 			aws_creds['aws_secret_key'] = data[3]
+			print(aws_creds)
 	except Exception as e :
 		logger.info('The input file does not exist or cannot be read : error %s' % e)
 

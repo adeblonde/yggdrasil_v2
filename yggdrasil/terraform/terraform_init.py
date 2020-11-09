@@ -70,11 +70,10 @@ def prepare_credentials_aws(logger, credentials_file, formatted_credentials_file
 	""" Prepare well-formatted credentials file for AWS """
 	aws_creds = load_aws_credentials(logger, credentials_file)
 
-	aws_creds_str = """
-export AWS_ACCESS_KEY={}
+	aws_creds_str = """export AWS_ACCESS_KEY={}
 export AWS_SECRET_KEY={}
 export AWS_DEFAULT_REGION={}
-""".format(aws_creds['aws_secret_key'], aws_creds[''])
+""".format(aws_creds['aws_access_key_id'], aws_creds['aws_secret_key'], region)
 
 	with open(formatted_credentials_file, 'w') as f :
 		f.write(aws_creds_str)
@@ -163,7 +162,13 @@ def load_provider_credentials(logger, provider, scope, workfolder) :
 	if os.path.exists(provider_secrets) :
 		logger.info("Setting provider credentials file in place")
 
-		return load_dotenv(provider_secrets)
+		load_dotenv(provider_secrets)
+		env = {
+			"AWS_ACCESS_KEY" : os.getenv("AWS_ACCESS_KEY"),
+			"AWS_SECRET_KEY" : os.getenv("AWS_SECRET_KEY"),
+			"AWS_DEFAULT_REGION" : os.getenv("AWS_DEFAULT_REGION")
+		}
+		return env
 
 	else :
 		raise Exception("Cannot read credentials file for this provider")
@@ -293,5 +298,5 @@ def infra_action(logger, action, extra_params, provider, scope, workfolder, exec
 		logger.info("Execution of command :\n%s\nin folder %s" % (' '.join(command), scope_folder))
 		result = subprocess.call(command, env=env, cwd=scope_folder, stdout=stdout)
 		logger.info("Result of Terraform call : %s" % result)
-	except :
-		logger.info("Error in the execution of Terraform :\n")
+	except Exception as e:
+		logger.info("Error in the execution of Terraform :\n%e" % e)

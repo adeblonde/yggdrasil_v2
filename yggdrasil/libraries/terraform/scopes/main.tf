@@ -124,11 +124,29 @@ locals {
 			network = k8s_cluster.network
 			subnetworks = k8s_cluster.subnetworks
 			zones = k8s_cluster.zones
-			username = k8s_cluster.username,
-			password = k8s_cluster.password,
+			username = k8s_cluster.username
+			password = k8s_cluster.password
 			system_image = lookup(var.system_images[var.cloud_provider], k8s_cluster.system_image)
 			instance_type = lookup(var.types[var.cloud_provider], k8s_cluster.instance_type)
-			desired_size = k8s_cluster.desired_size
+			k8s_node_groups = k8s_cluster.k8s_node_groups
+			ingress_rules = { for rule in k8s_cluster.ingress_rules :
+				rule => {
+					description = var.ingress_rules[rule].description
+					from_port   = var.ingress_rules[rule].from_port
+					to_port     = var.ingress_rules[rule].to_port
+					protocol    = var.ingress_rules[rule].protocol
+					cidr        = lookup(lookup(k8s_cluster, "ingress_cidr", {}), rule, ["0.0.0.0/0"])
+				}
+			}
+			egress_rules = { for rule in k8s_cluster.egress_rules :
+				rule => {
+					description = var.egress_rules[rule].description
+					from_port   = var.egress_rules[rule].from_port
+					to_port     = var.egress_rules[rule].to_port
+					protocol    = var.egress_rules[rule].protocol
+					cidr        = lookup(lookup(k8s_cluster, "egress_cidr", {}), rule, ["0.0.0.0/0"])
+				}
+			}
 		}
 	}
 

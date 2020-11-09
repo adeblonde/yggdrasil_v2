@@ -10,6 +10,8 @@ variable k8s_cluster {
 		password = string,
 		system_image = string,
 		instance_type = string,
-		desired_size = number
+		k8s_node_groups = map(any),
+		ingress_rules = map(any),
+		egress_rules = map(any)
 	})
 }

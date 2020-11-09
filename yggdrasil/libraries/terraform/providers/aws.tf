@@ -1,3 +1,3 @@
 provider "aws" {
-	region = var.datacenter
+	region = var.region
 }

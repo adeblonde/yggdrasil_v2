@@ -17,6 +17,8 @@ module "network" {
 module "vm" {
   source = "../../terraform/vm"
 
+  depends_on = [module.network]
+
   for_each = local.formatted_vm
 
 	vm = each.value
@@ -40,6 +42,8 @@ module "vm" {
 module "kubernetes" {
   source = "../../terraform/kubernetes"
 
+  depends_on = [module.network]
+
   for_each = local.formatted_k8s
 	
 	k8s_cluster = each.value
@@ -50,4 +54,11 @@ module "kubernetes" {
 #   private_subnets = each.value.private_subnets
 #   public_subnets  = each.value.public_subnets
 
+}
+
+### container registry : create a private Docker registry
+module "container_registry" {
+	source = "../../terraform/docker_registry"
+
+	count = (var.container_registry == true ? 1 : 0)
 }

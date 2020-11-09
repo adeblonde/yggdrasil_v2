@@ -11,6 +11,6 @@ output vm_parameters {
 	ssh_key = google_compute_instance.virtual_machine.labels.ssh_key
 	group = google_compute_instance.virtual_machine.labels.group
   }
-  description = "Map of VMs private ips"
+  description = "Map of VMs parameters"
   depends_on  = [google_compute_instance.virtual_machine]
 }

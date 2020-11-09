@@ -54,11 +54,13 @@ variable "network" {
 		public_subnets = map(
 			object({
 				cidr_block = string
+				availability_zone = string
 			})
 		)
 		private_subnets = map(
 			object({
 				cidr_block = string
+				availability_zone = string
 			})
 		)
 		private_subnets_escape_public_subnet = string
@@ -89,4 +91,10 @@ variable os_user {
 variable k8s_cluster {
 	description = "Map of all managed kubernetes clusters"
 	type = map(any)
+}
+
+### container registry
+variable container_registry {
+	description = "A Docker registry for the whole project"
+	type = bool
 }

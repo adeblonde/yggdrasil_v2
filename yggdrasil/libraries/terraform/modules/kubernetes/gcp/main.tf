@@ -35,13 +35,16 @@ resource "google_container_cluster" "k8s_cluster" {
 }
 
 # Separately Managed Node Pool
-resource "google_container_node_pool" "primary_nodes" {
-  name       = substr(replace(format("%s_%s_k8s_node_group", var.k8s_cluster.module_prefix, var.k8s_cluster.cluster_name), "_", "-"), 0, 40)
+resource "google_container_node_pool" "k8s_node_groups" {
+
+	for_each = var.k8s_cluster.k8s_node_groups
+
+  name       = substr(replace(format("%s_%s_%s_k8s_nd_grp", var.k8s_cluster.module_prefix, each.key, var.k8s_cluster.cluster_name), "_", "-"), 0, 40)
 #   format("%s_%s_k8s_node_group", var.k8s_cluster.module_prefix, var.k8s_cluster.cluster_name)
 #   location   = var.region
   location = var.k8s_cluster.zones[0]
   cluster    = google_container_cluster.k8s_cluster.name
-  node_count = var.k8s_cluster.desired_size
+  node_count = each.value.desired_size
 
   node_config {
     oauth_scopes = [
@@ -52,8 +55,11 @@ resource "google_container_node_pool" "primary_nodes" {
     metadata = merge(
         var.k8s_cluster.module_labels,
         {
-            "name" = substr(replace(format("%s_%s_k8s_node_group", var.k8s_cluster.module_prefix, var.k8s_cluster.cluster_name), "_", "-"), 0, 61)
-        } 
+            "name" = substr(replace(format("%s_%s_%s_k8s_node_group", var.k8s_cluster.module_prefix, each.key, var.k8s_cluster.cluster_name), "_", "-"), 0, 40)
+        },
+		{
+			"disable-legacy-endpoints" = "true"
+		}
     )
 
     # preemptible  = true
