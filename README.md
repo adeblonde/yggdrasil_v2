@@ -93,3 +93,13 @@ ygg workflow start [--scope <SCOPE_NAME>] [--target <WORKFLOW_NAME>] [--workfold
 ```bash
 ygg workflow stop [--scope <SCOPE_NAME>] [--target <WORKFLOW_NAME>] [--workfolder <PATH_TO_WORKFOLDER>]
 ```
+
+## Backlog
+
+Secrets management :
+
+- reading a well-formatted Keepass .dbx file on local file system to retrieve and store secrets
+
+GCP :
+
+- implementation of service API activation through [Terraform](https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/google_project_service)

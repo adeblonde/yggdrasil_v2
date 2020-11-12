@@ -15,3 +15,7 @@ variable k8s_cluster {
 		egress_rules = map(any)
 	})
 }
+
+variable network {
+
+}

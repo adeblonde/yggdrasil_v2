@@ -1,4 +1,4 @@
-### main variables
+### project variables
 variable "cloud_provider" {
 	description = "Cloud provider name"
 }
@@ -45,26 +45,52 @@ variable egress_rules {
   description = "description"
 }
 
+### IAM variables
+variable policy {
+  type        = map(object({
+	  actions = list(string),
+	  effect = string,
+	  resources = list(string)
+  }))
+  description = "Map of all IAM policies"
+}
+
+variable role {
+  type        = map(object({
+	  custom_policies = list(string),
+	  default_policies = list(string)
+	  services = list(string),
+  }))
+  description = "Map of all IAM roles"
+}
+
+variable instance_profile {
+  type        = map(object({
+	  role_name = string
+  }))
+  description = "Map of all instance profiles"
+}
+
 ### network variables
 variable "network" {
 	description = "Map of all networks and subnets"
-	type = map(object({
-		network_cidr = string
-		part = string
-		public_subnets = map(
-			object({
-				cidr_block = string
-				availability_zone = string
-			})
-		)
-		private_subnets = map(
-			object({
-				cidr_block = string
-				availability_zone = string
-			})
-		)
-		private_subnets_escape_public_subnet = string
-	}))
+	# type = map(object({
+	# 	network_cidr = string
+	# 	part = string
+	# 	public_subnets = map(
+	# 		object({
+	# 			cidr_block = string
+	# 			availability_zone = string
+	# 		})
+	# 	)
+	# 	private_subnets = map(
+	# 		object({
+	# 			cidr_block = string
+	# 			availability_zone = string
+	# 		})
+	# 	)
+	# 	private_subnets_escape_public_subnet = string
+	# }))
 }
 
 ### vm variables

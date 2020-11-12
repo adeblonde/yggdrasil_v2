@@ -70,10 +70,10 @@ def prepare_credentials_aws(logger, credentials_file, formatted_credentials_file
 	""" Prepare well-formatted credentials file for AWS """
 	aws_creds = load_aws_credentials(logger, credentials_file)
 
-	aws_creds_str = """export AWS_ACCESS_KEY={}
-export AWS_SECRET_KEY={}
+	aws_creds_str = """export AWS_ACCESS_KEY_ID={}
+export AWS_SECRET_ACCESS_KEY={}
 export AWS_DEFAULT_REGION={}
-""".format(aws_creds['aws_access_key_id'], aws_creds['aws_secret_key'], region)
+""".format(aws_creds['aws_access_key_id'], aws_creds['aws_secret_access_key'], region)
 
 	with open(formatted_credentials_file, 'w') as f :
 		f.write(aws_creds_str)
@@ -84,10 +84,10 @@ def prepare_credentials_azure(logger, credentials_file, formatted_credentials_fi
 	azure_creds = load_aws_credentials(logger, credentials_file)
 
 # 	azure_creds_str = """
-# export AWS_ACCESS_KEY={}
-# export AWS_SECRET_KEY={}
+# export AWS_ACCESS_KEY_ID={}
+# export AWS_SECRET_ACCESS_KEY={}
 # export AWS_DEFAULT_REGION={}
-# """.format(aws_creds['aws_secret_key'], aws_creds[''])
+# """.format(aws_creds['aws_secret_access_key'], aws_creds[''])
 
 	with open(formatted_credentials_file, 'w') as f :
 			f.write(azure_creds_str)
@@ -164,8 +164,8 @@ def load_provider_credentials(logger, provider, scope, workfolder) :
 
 		load_dotenv(provider_secrets)
 		env = {
-			"AWS_ACCESS_KEY" : os.getenv("AWS_ACCESS_KEY"),
-			"AWS_SECRET_KEY" : os.getenv("AWS_SECRET_KEY"),
+			"AWS_ACCESS_KEY_ID" : os.getenv("AWS_ACCESS_KEY_ID"),
+			"AWS_SECRET_ACCESS_KEY" : os.getenv("AWS_SECRET_ACCESS_KEY"),
 			"AWS_DEFAULT_REGION" : os.getenv("AWS_DEFAULT_REGION")
 		}
 		return env
@@ -294,8 +294,8 @@ def infra_action(logger, action, extra_params, provider, scope, workfolder, exec
 
 	scope_folder = os.path.join(workfolder, 'scopes', scope)
 	try :
-		command = [exec_path, action] + extra_params
-		logger.info("Execution of command :\n%s\nin folder %s" % (' '.join(command), scope_folder))
+		command = [exec_path, action] + extra_params #+ ['-lock=false']
+		logger.info("Execution of command :\n%s\nin folder %s\n" % (' '.join(command), scope_folder))
 		result = subprocess.call(command, env=env, cwd=scope_folder, stdout=stdout)
 		logger.info("Result of Terraform call : %s" % result)
 	except Exception as e:

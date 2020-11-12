@@ -38,3 +38,7 @@
 
 variable vm {
 }
+
+variable network {
+	
+}

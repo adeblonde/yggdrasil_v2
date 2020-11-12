@@ -2,18 +2,19 @@
 # Security Group / Firewall group
 ############
 
-data "aws_vpc" "k8s_vpc" {
-	filter {
-		name = "tag:name"
-		values = [format("%s_%s_network", var.k8s_cluster.module_prefix, var.k8s_cluster.network)]
-	}
-}
+# data "aws_vpc" "k8s_vpc" {
+# 	filter {
+# 		name = "tag:name"
+# 		values = [format("%s_%s_network", var.k8s_cluster.module_prefix, var.k8s_cluster.network)]
+# 	}
+# }
 
 resource "aws_security_group" "security_group_node" {
 	
 	name = format("%s_%s_sg", var.k8s_cluster.module_prefix, var.k8s_cluster.cluster_name)
 	description = "Kubernetes cluster" #var.k8s_cluster.description
-	vpc_id = data.aws_vpc.k8s_vpc.id
+	# vpc_id = data.aws_vpc.k8s_vpc.id
+	vpc_id = var.network.network_id
 	revoke_rules_on_delete = true
 
 	dynamic "ingress" {
@@ -52,23 +53,24 @@ resource "aws_security_group" "security_group_node" {
 # Kubernetes Cluster
 ############
 
-data "aws_subnet_ids" "k8s_subnet_ids" {
+# data "aws_subnet_ids" "k8s_subnet_ids" {
 
-	vpc_id = data.aws_vpc.k8s_vpc.id
-	filter {
-		name = "tag:name"
-		values = [for private_subnet in var.k8s_cluster.subnetworks : format("%s_%s_%s_private_subnet", var.k8s_cluster.module_prefix, var.k8s_cluster.network, private_subnet)]
-	}
-}
+# 	vpc_id = data.aws_vpc.k8s_vpc.id
+# 	filter {
+# 		name = "tag:name"
+# 		values = [for private_subnet in var.k8s_cluster.subnetworks : format("%s_%s_%s_private_subnet", var.k8s_cluster.module_prefix, var.k8s_cluster.network, private_subnet)]
+# 	}
+# }
 
 resource "aws_eks_cluster" "k8s_cluster" {
 
     name = format("%s_%s_k8s_cluster", var.k8s_cluster.module_prefix, var.k8s_cluster.cluster_name)
 
     role_arn = aws_iam_role.k8s_role.arn
-
+	
     vpc_config {
-        subnet_ids = data.aws_subnet_ids.k8s_subnet_ids.ids
+        subnet_ids = [for private_subnet in var.k8s_cluster.subnetworks : var.network["private_subnets"][private_subnet].id ]
+        # subnet_ids = data.aws_subnet_ids.k8s_subnet_ids.ids
         security_group_ids = [aws_security_group.security_group_node.id]
         endpoint_private_access = true
     } 
@@ -92,10 +94,12 @@ resource "aws_eks_node_group" "k8s_node_groups" {
 
     cluster_name = format("%s_%s_k8s_cluster", var.k8s_cluster.module_prefix, var.k8s_cluster.cluster_name)
     node_group_name = format("%s_%s_%s_k8s_node_group", var.k8s_cluster.module_prefix, each.key, var.k8s_cluster.cluster_name)
-    node_role_arn = aws_iam_role.k8s_role_node_group.arn
-    subnet_ids = [aws_security_group.security_group_node.id]
+    node_role_arn = aws_iam_role.k8s_role_node_group[each.key].arn
+    subnet_ids = [for private_subnet in var.k8s_cluster.subnetworks : var.network["private_subnets"][private_subnet].id ]
+    # subnet_ids = data.aws_subnet_ids.k8s_subnet_ids.ids
     remote_access {
-        ec2_ssh_key = format("%s_%s_%s_k8s_ssh_key", var.k8s_cluster.module_prefix, var.k8s_cluster.cluster_name, each.key)
+        # ec2_ssh_key = format("%s_%s_%s_k8s_ssh_key", var.k8s_cluster.module_prefix, var.k8s_cluster.cluster_name, each.key)
+        ec2_ssh_key = format("%s", var.k8s_cluster.module_prefix)
     }
 
     scaling_config {
@@ -149,7 +153,9 @@ POLICY
 
 resource "aws_iam_role" "k8s_role_node_group" {
 
-    name = format("%s_%s_k8s_cluster_role_node_group", var.k8s_cluster.module_prefix, var.k8s_cluster.cluster_name)
+    for_each = var.k8s_cluster.k8s_node_groups
+
+    name = format("%s_%s_%s_k8s_node_group_role", var.k8s_cluster.module_prefix, var.k8s_cluster.cluster_name, each.key)
 
     assume_role_policy = <<POLICY
 {

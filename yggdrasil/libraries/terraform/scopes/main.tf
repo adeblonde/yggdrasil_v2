@@ -64,6 +64,14 @@ locals {
 	### formatting private subnets
 	# formatted_private_subnets = flatten([])
 
+	### formatting SSH keys
+	formatted_ssh_keys = { for network_key, network in var.network : 
+		local.common_name_prefix[network.part]["all_subparts"] => {
+			key_name = local.common_name_prefix[network.part]["all_subparts"]
+			public_key = file(format("%s%s.pub", var.ssh_public_key_folder, local.common_name_prefix[network.part]["all_subparts"]))
+		}
+	}
+
 	### formatting virtual machines
 	formatted_vm_list = flatten([
 		for network_name, network_vms in var.vm : [
@@ -77,15 +85,17 @@ locals {
 					network_prefix = local.common_name_prefix[vm.part]["all_subparts"]
 					module_labels     = local.common_labels[vm.part][vm.subpart]
 					module_prefix       = local.common_name_prefix[vm.part][vm.subpart]
+					common_prefix = local.common_name_prefix["all_parts"]
 					group = vm.group
 					instance_type = lookup(var.types[var.cloud_provider], vm.type)
+					instance_profile_name = lookup(vm, "instance_profile", "default")
 					availability_zone = vm.availability_zone
 					system_image = lookup(var.system_images[var.cloud_provider], vm.system_image)
 					subnet_type = vm.subnet_type
 					private_ip = vm.private_ip
 					root_volume = var.generic_volume_parameters[vm.root_volume_type]
 					data_volume = var.generic_volume_parameters[lookup(vm, "data_volume_type", "none")]
-					data_disk_id         = lookup(vm, "data_disk_id", "/dev/sdf")
+					data_volume_name         = lookup(vm, "data_volume_name", "/dev/sdf")
 					# ssh_public_key_path = format("%s%s.pub", var.ssh_public_key_folder, var.vm.ssh_key)
 					ssh_public_key_path = var.ssh_public_key_folder
 					ingress_rules = { for rule in vm.ingress_rules :

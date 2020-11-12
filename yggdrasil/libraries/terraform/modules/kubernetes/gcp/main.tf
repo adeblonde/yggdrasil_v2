@@ -26,6 +26,14 @@ resource "google_container_cluster" "k8s_cluster" {
     }
   }
 
+  node_config {
+    oauth_scopes = [
+      "https://www.googleapis.com/auth/cloud-platform"
+    ]
+  }
+
+#   service_account = 
+
 #   metadata = merge(
 #         var.k8s_cluster.module_labels,
 #         {
@@ -47,9 +55,12 @@ resource "google_container_node_pool" "k8s_node_groups" {
   node_count = each.value.desired_size
 
   node_config {
-    oauth_scopes = [
-      "https://www.googleapis.com/auth/logging.write",
-      "https://www.googleapis.com/auth/monitoring",
+    # oauth_scopes = [
+    #   "https://www.googleapis.com/auth/logging.write",
+    #   "https://www.googleapis.com/auth/monitoring",
+    # ]
+	oauth_scopes = [
+      "https://www.googleapis.com/auth/cloud-platform"
     ]
 
     metadata = merge(

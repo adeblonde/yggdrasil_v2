@@ -13,15 +13,36 @@ module "network" {
 
 }
 
+### SSH : creates and uploads SSH keys needed for reaching the VMs
+module "ssh" {
+	source = "../../terraform/ssh"
+
+	for_each = local.formatted_ssh_keys
+
+		key = each.value
+}
+
+### IAM : Identity and Access Management (otherwise known as RBAC : Role-Based Access Control)
+module "iam" {
+	source = "../../terraform/iam"
+
+	policy = var.policy
+	role = var.role
+	instance_profile = var.instance_profile
+	common_labels = local.common_labels["all_parts"]
+	common_prefix = local.common_name_prefix["all_parts"]
+}
+
 ### vm : contains virtual machines + dedicated firewalls
 module "vm" {
   source = "../../terraform/vm"
 
-  depends_on = [module.network]
+  depends_on = [module.network, module.iam]
 
   for_each = local.formatted_vm
 
 	vm = each.value
+	network = module.network[each.value.network_name].network_parameters
 	# network_name        = each.key
 	# module_labels     = each.value.module_labels
 	# module_prefix       = each.value.network_module_prefix
@@ -47,7 +68,7 @@ module "kubernetes" {
   for_each = local.formatted_k8s
 	
 	k8s_cluster = each.value
-
+	network = module.network[each.value.network].network_parameters
 #   k8s_cluster_name        = each.key
 #   module_labels     = each.value.module_labels
 #   module_prefix       = each.value.network_module_prefix

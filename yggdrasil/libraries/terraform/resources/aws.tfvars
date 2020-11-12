@@ -7,7 +7,7 @@ system_images = {
 	}
 	aws = {
 		debian = "debian-9"
-		ubuntu_server = "ubuntu-2004-lts"
+		ubuntu_server = "ubuntu"
 		centos = "centos-8"
 		kubernetes = "AL2_x86_64"
 	}
@@ -19,19 +19,19 @@ system_images = {
 # pd-balanced : cheaper SSD
 generic_volume_parameters = {
 	small_root = {
-		type = "pd-ssd"
+		type = "gp2"
 		size = 16
 	}
 	large_root = {
-		type = "pd-ssd"
+		type = "gp2"
 		size = 32
 	}
 	large_data = {
-		type = "pd-standard"
-		size = 128
+		type = "sc1"
+		size = 512
 	}
 	none = {
-		type = "pd-standard"
+		type = "standard"
 		size = 0
 	}
 }

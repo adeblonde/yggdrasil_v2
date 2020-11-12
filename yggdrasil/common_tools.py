@@ -21,9 +21,12 @@ def load_aws_credentials(logger, aws_creds_file) :
 	try :
 		with open(aws_creds_file, 'r') as f_read :
 			data = f_read.read().split('\n')[1].split(',')
-			aws_creds['aws_access_key_id'] = data[2]
-			aws_creds['aws_secret_key'] = data[3]
-			print(aws_creds)
+			if len(data) > 2 :
+				aws_creds['aws_access_key_id'] = data[2]
+				aws_creds['aws_secret_access_key'] = data[3]
+			if len(data) == 2 :
+				aws_creds['aws_access_key_id'] = data[0]
+				aws_creds['aws_secret_access_key'] = data[1]
 	except Exception as e :
 		logger.info('The input file does not exist or cannot be read : error %s' % e)
 

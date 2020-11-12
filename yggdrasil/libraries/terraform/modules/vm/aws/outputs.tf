@@ -2,8 +2,8 @@ output vm_parameters {
   value       = {
 	vm_name = aws_instance.virtual_machine.tags.name
 	private_ip = aws_instance.virtual_machine.private_ip
-	subnet_full_name = data.aws_subnet.vm_subnet.tags.name
-	network_full_name = data.aws_vpc.vm_vpc.tags.name
+	subnet_full_name = aws_instance.virtual_machine.subnet_id
+	network_full_name = var.network.network_id
 	subnet = var.vm.subnet_name
 	network_name = var.vm.network_name
 	user = var.vm.user

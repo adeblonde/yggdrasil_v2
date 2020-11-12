@@ -1,20 +1,35 @@
 ############
+# AWS AMI Id
+############
+data "aws_ami" "ami" {
+  owners = ["099720109477"]
+  most_recent = true
+
+  filter {
+    name   = "name"
+    # values = [format("%s/images/%s-*-*-amd64-server-*", var.vm.system_image, var.vm.system_image)]
+	values = [format("%s/images/hvm-ssd/%s-*-*-amd64-server-*", var.vm.system_image, var.vm.system_image)]
+  }
+}
+
+############
 # Security Group / Firewall group
 ############
 
-data "aws_vpc" "vm_vpc" {
-	filter {
-		name = "tag:name"
-		values = [format("%s_%s_network", var.vm.network_prefix, var.vm.network_name)]
-	}
-}
+# data "aws_vpc" "vm_vpc" {
+# 	filter {
+# 		name = "tag:name"
+# 		values = [format("%s_%s_network", var.vm.network_prefix, var.vm.network_name)]
+# 	}
+# }
 
 resource "aws_security_group" "security_group_vm" {
 	
 	name = format("%s_%s_sg", var.vm.module_prefix, var.vm.vm_name)
 	description = "Description VM"
 	# description = var.vm.description
-	vpc_id = data.aws_vpc.vm_vpc.id
+	# vpc_id = data.aws_vpc.vm_vpc.id
+	vpc_id = var.network.network_id
 	revoke_rules_on_delete = true
 
 	dynamic "ingress" {
@@ -53,23 +68,25 @@ resource "aws_security_group" "security_group_vm" {
 # Virtual Machine
 ############
 
-data "aws_subnet" "vm_subnet" {
-	filter {
-		name = "tag:name"
-		values = [format("%s_%s_%s_%s_subnet", var.vm.network_prefix, var.vm.network_name, var.vm.subnet_name, var.vm.subnet_type)]
-	}
-}
+# data "aws_subnet" "vm_subnet" {
+# 	filter {
+# 		name = "tag:name"
+# 		values = [format("%s_*", var.vm.network_prefix)]
+# 		# values = [format("%s_%s_%s_%s_subnet", var.vm.network_prefix, var.vm.network_name, var.vm.subnet_name, var.vm.subnet_type)]
+# 	}
+# }
 
 resource "aws_instance" "virtual_machine" {
 
 	depends_on = [aws_security_group.security_group_vm]
-	ami = var.vm.system_image
+	ami = data.aws_ami.ami.id
 	instance_type = var.vm.instance_type
 	vpc_security_group_ids = [aws_security_group.security_group_vm.id]
 
 	availability_zone = var.vm.availability_zone
-	key_name = var.vm.key_name
-	subnet_id = data.aws_subnet.vm_subnet.id
+	key_name = var.vm.network_prefix
+	subnet_id = var.network[format("%s_subnets", var.vm.subnet_type)][var.vm.subnet_name].id
+	# subnet_id = data.aws_subnet.vm_subnet.id
 	associate_public_ip_address = (var.vm.subnet_type == "public" ? true : false)
 	private_ip = var.vm.private_ip
 	source_dest_check = true
@@ -80,12 +97,14 @@ resource "aws_instance" "virtual_machine" {
 		delete_on_termination = true
 	}
 
-	iam_instance_profile = format("%s_%s_instance_profile", var.vm.iam_module_prefix, var.vm.instance_profile_name)
+	# iam_instance_profile = format("%s_%s_iam_instance_profile", var.vm.common_prefix, var.vm.instance_profile_name)
+	# iam_instance_profile = format("%s_%s_instance_profile", var.vm.common_prefix, var.vm.instance_profile_name)
 
 		tags = merge(
         var.vm.module_labels,
         {
-            "name" = format("%s_%s_virtual_machine", var.vm.module_prefix, var.vm.vm_name)
+            "name" = format("%s_%s_virtual_machine", var.vm.module_prefix, var.vm.vm_name),
+			"group" = var.vm.group
         }
     )
 
@@ -95,6 +114,10 @@ resource "aws_instance" "virtual_machine" {
             "name" = format("%s_%s_vm_root_volume", var.vm.module_prefix, var.vm.vm_name)
         }
     )
+
+	lifecycle {
+		create_before_destroy = true
+	}
 
 }
 

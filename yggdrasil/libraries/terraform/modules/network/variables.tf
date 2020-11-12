@@ -1,13 +1,13 @@
 variable network {
-  type        = object({
-	network_name  = string,
-	module_labels = map(string),
-	module_prefix = string,
-	private_subnets = map(any),
-	public_subnets = map(any),
-	private_subnets_escape_public_subnet = string,
-	network_cidr = string
-  })
+#   type        = object({
+# 	network_name  = string,
+# 	module_labels = map(string),
+# 	module_prefix = string,
+# 	private_subnets = map(any),
+# 	public_subnets = map(any),
+# 	private_subnets_escape_public_subnet = string,
+# 	network_cidr = string
+#   })
 #   default     = ""
   description = "Map of parameters for network and associated subnets"
 }
