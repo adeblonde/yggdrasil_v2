@@ -50,7 +50,7 @@ def set_parameters(logger, configfile, params, variable=None) :
 @click.option('--credentials','-c', default='credentials.json', help='Location of the credentials file for the chosen cloud provider')
 @click.option('--provider','-p', default='aws', help='cloud provider name, currently either "aws", "azure" or "gcp"')
 @click.option('--scope','-s', default='dev', help='architecture scope')
-@click.option('--workfolder','-w', default='.', help='Location of the working folder that will be created with temporary file, name after \'config_name\'')
+@click.option('--workfolder','-w', default='./yggdrasil', help='Location of the working folder that will be created with temporary file, name after \'config_name\'')
 @click.option('--region','-r', default='us-east-1', help='Location of the working folder that will be created with temporary file, name after \'config_name\'')
 @click.option('--blueprint','-r', default='dev', help='Name of a cloud architecture blueprint from Yggdrasil\'s library for bootstrapping')
 @click.option('--tf-library-path','-tl', default=None, help='Path to a custom Terraform library')
