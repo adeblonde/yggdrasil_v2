@@ -3,9 +3,14 @@ from os.path import join, expanduser
 import pkg_resources
 import sys
 import io
+import os
 from yggdrasil.yggdrasil import run
+from ..common_tools import create_logger
+
+from yggdrasil.terraform.terraform_init import prepare_ssh_keys
 
 DATA_PATH = pkg_resources.resource_filename('yggdrasil', '.')
+TEST_PATH = pkg_resources.resource_filename('yggdrasil', '..', 'test')
 
 class GlobalTest(unittest.TestCase) :
 
@@ -14,14 +19,28 @@ class GlobalTest(unittest.TestCase) :
 	""" prepare setup """
 	def setUp(self) :
 		self.name = 'test'
+		self.logger = create_logger(os.path.join(TEST_PATH, '.'))
+		self.workfolder = TEST_PATH
+		self.scope = "test_scope"
+		self.provider = "test_provider"
+		self.secrets_folder = os.path.join(TEST_PATH, "secrets", self.scope)
+		self.ssh_private_folder = os.path.join(TEST_PATH, "secrets", "ssh", "private")
+		self.ssh_public_folder = os.path.join(TEST_PATH, "secrets", "ssh", "public")
 	
 	""" tear down """
 	def tearDown(self) :
 		self.name = None
 
-	""" test writing to S3 """
-	def test_write2s3(self) :
-		self.name = 'test writing to S3'
+	""" test prepare_ssh_keys """
+	def test_prepare_ssh_keys(self) :
+		
+		prepare_ssh_keys(self.logger, self.provider, self.scope, self.workfolder)
+
+		ssh_keys = ["ssh_key"]
+		for ssh_key in ssh_keys :
+			self.assertTrue(os.path.exists(os.path.join(self.ssh_private_folder, ssh_key)))
+			self.assertTrue(os.path.exists(os.path.join(self.ssh_public_folder, ssh_key)))
+
 
 	""" test running a config file """
 	def test_run(self) :

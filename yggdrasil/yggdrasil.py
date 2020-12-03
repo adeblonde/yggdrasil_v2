@@ -53,14 +53,17 @@ def set_parameters(logger, configfile, params, variable=None) :
 @click.option('--workfolder','-w', default='.', help='Location of the working folder that will be created with temporary file, name after \'config_name\'')
 @click.option('--region','-r', default='us-east-1', help='Location of the working folder that will be created with temporary file, name after \'config_name\'')
 @click.option('--blueprint','-r', default='dev', help='Name of a cloud architecture blueprint from Yggdrasil\'s library for bootstrapping')
-def ygg(stage, action, provider, scope, workfolder, credentials, region, blueprint) :
+@click.option('--tf-library-path','-tl', default=None, help='Path to a custom Terraform library')
+@click.option('--tf-library-name','-tn', default='terraform', help='Name of the Terraform library folder (default \'terraform\')')
+@click.option('--no-backend','-nb', is_flag=True, default=False, help='allow to Terraform init a folder without backend, for testing/debugging purpsoses')
+def ygg(stage, action, provider, scope, workfolder, credentials, region, blueprint, tf_library_path, tf_library_name, no_backend) :
 
     """ we execute the run options with the provided arguments """
-    run(stage, action, provider, scope, workfolder, credentials, region)
+    run(stage, action, provider, scope, workfolder, credentials, region, blueprint, tf_library_path, tf_library_name, no_backend)
     # run(action, configuration_file, workfolder, parameters)
 
 # def run(step, action, configuration_file, workfolder, params, variable=None, dryrun=False, shutdownatend=False) :
-def run(stage, action, provider, scope, workfolder, credentials_file, region, blueprint) :
+def run(stage, action, provider, scope, workfolder, credentials_file, region, blueprint, tf_library_path, tf_library_name, no_backend) :
 
 	""" the run function is separated from the main CLI function ygg, for modularity purposes """
 
@@ -79,16 +82,16 @@ def run(stage, action, provider, scope, workfolder, credentials_file, region, bl
 
 	""" execute stage """
 	if stage == "infra" :
-		infra(logger, action, provider, scope, workfolder, credentials_file, region, blueprint)
+		infra(logger, action, provider, scope, workfolder, credentials_file, region, blueprint, tf_library_path, tf_library_name, no_backend)
 	if stage == "config" :
 		config(logger, action, provider, scope, workfolder)
 
-def infra(logger, action, provider, scope, workfolder, credentials_file, region, blueprint) :
+def infra(logger, action, provider, scope, workfolder, credentials_file, region, blueprint, tf_library_path, tf_library_name, no_backend) :
 
 	logger.info("Entering stage infra")
 
 	""" check if action is allowed """
-	allowed_actions = ["apply", "init", "destroy", "plan", "output"]
+	allowed_actions = ["apply", "init", "destroy", "plan", "output", "validate"]
 	if action not in allowed_actions :
 		logger.info("Action %s not allowed, action should be one of %s" % (action, " ".join(allowed_actions)))
 		exit()
@@ -104,7 +107,7 @@ def infra(logger, action, provider, scope, workfolder, credentials_file, region,
 		if not os.path.exists(credentials_file) :
 			logger.info("Missing credentials file at location %s, stopping program" % credentials_file)
 			exit()
-		terraform_init.infra_init(logger, provider, scope, workfolder, exec_path, DATA_PATH, credentials_file, region, blueprint)
+		terraform_init.infra_init(logger, provider, scope, workfolder, exec_path, DATA_PATH, credentials_file, region, blueprint, custom_tf_library_path=tf_library_path, tf_library_name=tf_library_name)
 
 	""" infra_action executes the 'action' infra function """
 	stdout = None
@@ -113,8 +116,10 @@ def infra(logger, action, provider, scope, workfolder, credentials_file, region,
 		inventory_folder = os.path.join(workfolder, 'inventories', scope)
 		makedir_p(inventory_folder)
 		terraform_output_file = os.path.join(inventory_folder, 'terraform_output.json')
-		extra_params = ["-json"]
+		extra_params += ["-json"]
 		stdout = terraform_output_file
+	if no_backend is True:
+		extra_params += ['-backend=false']
 	
 	terraform_init.infra_action(logger, action, extra_params, provider, scope, workfolder, exec_path, stdout)
 

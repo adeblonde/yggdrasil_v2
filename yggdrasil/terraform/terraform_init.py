@@ -8,6 +8,8 @@ from dotenv import load_dotenv
 from yggdrasil.common_tools import *
 import hcl
 
+common_providers = ['aws', 'azure', 'gcp']
+
 def prepare_ssh_keys(logger, provider, scope, workfolder) :
 
 	""" parse the network.tfvars file of the current scope in order to retrieve the list of ssh keys to create """
@@ -19,10 +21,16 @@ def prepare_ssh_keys(logger, provider, scope, workfolder) :
 	
 	tf_parts = dict()
 	ssh_prefix = ""
+	terraform_tfvars = dict()
 	with open(terraform_tfvars_file, 'r') as f :
 		terraform_tfvars = hcl.load(f)
+
+	if 'parts' in terraform_tfvars.keys() :
 		tf_parts = terraform_tfvars['parts']
 		ssh_prefix = "_".join([terraform_tfvars['account'], terraform_tfvars['cost_center'], terraform_tfvars['environment']])
+	else :
+		logger.info("No parts defined, no SSH keys to manage")
+		return
 
 	ssh_keys = [ ssh_prefix + '_' + part  for part in tf_parts.keys()]
 	# ssh_keys = [ ssh_prefix + '_' + part + '_' + subpart for part, subparts in tf_parts.items() for subpart in subparts]
@@ -90,7 +98,7 @@ def prepare_credentials_azure(logger, credentials_file, formatted_credentials_fi
 # """.format(aws_creds['aws_secret_access_key'], aws_creds[''])
 
 	with open(formatted_credentials_file, 'w') as f :
-			f.write(azure_creds_str)
+		f.write(azure_creds_str)
 
 # def prepare_credentials_gcp(logger, credentials_file, formatted_credentials_file, region):
 
@@ -121,6 +129,22 @@ def prepare_credentials(logger, credentials_file, provider, scope, workfolder, r
 	if os.path.isfile(credentials_file) :
 		logger.info("Setting provider credentials file in place")
 		# shutil.copyfile(credentials_file, provider_secrets)
+		if provider == "vsphere" :
+			logger.info("Setting vSphere secrets")
+			provider_secrets = os.path.join(provider_secrets_folder, '.env')
+			shutil.copyfile(credentials_file, provider_secrets)
+
+			env = load_provider_credentials(logger, provider, scope, workfolder)
+			buffer_provider_file_content = ""
+			with open(target_provider, 'r') as f :
+				buffer_provider_file_content = f.read()
+				buffer_provider_file_content = buffer_provider_file_content.replace('USERNAME', env['USERNAME'])
+				buffer_provider_file_content = buffer_provider_file_content.replace('PASSWORD', env['PASSWORD'])
+				buffer_provider_file_content = buffer_provider_file_content.replace('SERVER', env['SERVER'])
+
+			with open(target_provider, 'w') as f :
+				f.write(buffer_provider_file_content)
+
 		if provider == "aws" :
 			logger.info("Setting AWS secrets")
 			provider_secrets = os.path.join(provider_secrets_folder, '.env')
@@ -159,56 +183,78 @@ def load_provider_credentials(logger, provider, scope, workfolder) :
 	provider_secrets_folder = os.path.join(workfolder, 'secrets', provider)
 	provider_secrets = os.path.join(provider_secrets_folder, scope, '.env')
 
+	logger.info("Reading provider credentials file %s", provider_secrets)
 	if os.path.exists(provider_secrets) :
-		logger.info("Setting provider credentials file in place")
-
+		
 		load_dotenv(provider_secrets)
-		env = {
-			"AWS_ACCESS_KEY_ID" : os.getenv("AWS_ACCESS_KEY_ID"),
-			"AWS_SECRET_ACCESS_KEY" : os.getenv("AWS_SECRET_ACCESS_KEY"),
-			"AWS_DEFAULT_REGION" : os.getenv("AWS_DEFAULT_REGION")
-		}
+		env = dict()
+		if provider == "aws" :
+			env = {
+				"AWS_ACCESS_KEY_ID" : os.getenv("AWS_ACCESS_KEY_ID"),
+				"AWS_SECRET_ACCESS_KEY" : os.getenv("AWS_SECRET_ACCESS_KEY"),
+				"AWS_DEFAULT_REGION" : os.getenv("AWS_DEFAULT_REGION")
+			}
+		if provider == "vsphere" :
+			env = {
+				"USERNAME" : os.getenv("VSPHERE_USER"),
+				"PASSWORD" : os.getenv("VSPHERE_PASSWORD"),
+				"SERVER" : os.getenv("VSPHERE_API")
+			}
 		return env
 
 	else :
 		raise Exception("Cannot read credentials file for this provider")
 
-def infra_init(logger, provider, scope, workfolder, exec_path, data_path, credentials_file, region, blueprint, upgrade=False) :
+def infra_init(logger, provider, scope, workfolder, exec_path, data_path, credentials_file, region, blueprint, custom_tf_library_path=None, tf_library_name='terraform', upgrade=False) :
 
 	logger.info("Init action")
 
 	logger.info("Creating Terraform modules")
-	tf_modules_folder = os.path.join(workfolder, 'terraform')
+	tf_modules_folder = os.path.join(workfolder, tf_library_name)
 	makedir_p(tf_modules_folder)
 
 	""" we walk through the list of Terraform modules in the package's libraries and copy them """
-	libraries_tf_folder = os.path.join(data_path, 'libraries', 'terraform', 'modules')
-	# for root, dirs, files in os.walk(libraries_tf_folder) :
-	for module_name in os.listdir(libraries_tf_folder) :
-		""" dealing with common Terraform modules """
-		module_dir = os.path.join(libraries_tf_folder, module_name)
-		makedir_p(os.path.join(tf_modules_folder, module_name))
+	libraries_tf_folder = os.path.join(data_path, 'libraries', 'terraform', 'modules', provider)
+	if custom_tf_library_path is not None :
+		libraries_tf_folder = os.path.join(custom_tf_library_path, 'modules', provider)
 
-		if provider in os.listdir(module_dir) :
-			""" copying main.tf and outputs.tf """
-			for tf_file in ['main.tf', 'outputs.tf'] :
-				source_file = os.path.join(module_dir, provider, tf_file)
-				dest_file = os.path.join(tf_modules_folder, module_name, tf_file)
-				if os.path.isfile(source_file) :
-					shutil.copyfile(source_file, dest_file)
-				else :
-					logger.info("Error : file %s missing in package source", source_file)
-					
-			""" copying variables.tf (common for all providers) """
-			source_file = os.path.join(module_dir, 'variables.tf')
-			dest_file = os.path.join(tf_modules_folder, module_name, 'variables.tf')
-			if os.path.isfile(source_file) :
-				shutil.copyfile(source_file, dest_file)
-			else :
-				logger.info("Error : file %s missing in package source", source_file)
-		
+		""" if we are not using remote git module repos, we copy the module folders directly """
+		using_git = False
+		if len(libraries_tf_folder) > 3 :
+			if libraries_tf_folder[:3] == "git" :
+				using_git = True
+
+		using_http = False
+		if len(libraries_tf_folder) > 4 :
+			if libraries_tf_folder[:3] == "http" :
+				using_git = True
+
+		if (not using_git) & (not using_http) :
+			# for root, dirs, files in os.walk(libraries_tf_folder) :
+			
+			for module_name in os.listdir(libraries_tf_folder) :
+				""" dealing with common Terraform modules """
+				module_dir = os.path.join(libraries_tf_folder, module_name)
+				makedir_p(os.path.join(tf_modules_folder, module_name))
+
+				""" copying all .tf files """
+				local_tf_files = [f for f in os.listdir(module_dir) if len(f) > 3]
+				local_tf_files = [f for f in local_tf_files if f[-3:] == ".tf"]
+				for tf_file in local_tf_files :
+					source_file = os.path.join(module_dir, tf_file)
+					dest_file = os.path.join(tf_modules_folder, module_name, tf_file)
+					if os.path.isfile(source_file) :
+						shutil.copyfile(source_file, dest_file)
+					else :
+						logger.info("Error : file %s missing in package source", source_file)
+
 	logger.info("Creating scopes folder")
 	source_scopes_folder = os.path.join(data_path, 'libraries', 'terraform', 'scopes')
+	if custom_tf_library_path is not None :
+		if provider in common_providers :
+			source_scopes_folder = os.path.join(custom_tf_library_path, 'scopes', 'common')
+		else :
+			source_scopes_folder = os.path.join(custom_tf_library_path, 'scopes', provider)
 	target_scope_folder = os.path.join(workfolder, 'scopes', scope)
 
 	logger.info("Creating scope %s folder tree" % scope)
@@ -236,15 +282,30 @@ def infra_init(logger, provider, scope, workfolder, exec_path, data_path, creden
 		with open(target_terraform_tfvars_file, 'w') as f :
 			f.write(buffer_string)
 
+	""" setting Terraform library path in modules tf file """
+	target_module_tf_file = os.path.join(target_scope_folder, 'modules.tf')
+	if os.path.isfile(target_module_tf_file) :
+		buffer_string = ""
+		with open(target_module_tf_file, 'r') as f :
+			buffer_string = f.read()
+		buffer_string = buffer_string.replace('TERRAFORM_LIBRARY_PATH', '../../' + tf_library_name)
+		with open(target_module_tf_file, 'w') as f :
+			f.write(buffer_string)
+
 	""" we get the 'provider.tf' file specific to the chosen provider """
 	logger.info("Setting scope provider")
 	source_provider = os.path.join(data_path, 'libraries', 'terraform', 'providers', provider + '.tf')
+
+	if custom_tf_library_path is not None :
+		source_provider = os.path.join(custom_tf_library_path, 'providers', provider + '.tf')
 	target_provider = os.path.join(workfolder, 'scopes', scope, 'provider.tf')
 	shutil.copy(source_provider, target_provider)
 
 	""" we get the terraform variable file providing the name mappings for the chosen provider """
 	logger.info("Setting scope provider specific resources' names")
 	source_resources = os.path.join(data_path, 'libraries', 'terraform', 'resources', provider + '.tfvars')
+	if custom_tf_library_path is not None :
+		source_resources = os.path.join(custom_tf_library_path, 'resources', provider + '.tfvars')
 	target_resources = os.path.join(workfolder, 'scopes', scope, 'resources.auto.tfvars')
 	shutil.copy(source_resources, target_resources)
 
